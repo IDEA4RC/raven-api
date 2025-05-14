@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: raven-api-monitor
+  labels:
+    release: prometheus # Must match your Prometheus configuration
+spec:
+  selector:
+    matchLabels:
+      app: raven-api # Must match the service labels
+  endpoints:
+  - port: http # Must match the port name defined in the service
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 14s

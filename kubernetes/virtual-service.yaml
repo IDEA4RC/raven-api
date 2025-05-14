@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: raven-api
+spec:
+  hosts:
+  - "raven-api.example.com" # Ajustar al dominio real
+  gateways:
+  - raven-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api
+    route:
+    - destination:
+        host: raven-api
+        port:
+          number: 80

@@ -1,0 +1,12 @@
+# Configuration file for uv
+[venv]
+venv-path = ".venv"
+seed = true
+
+[pythons]
+# Python version specification. You can adjust it to the version you need.
+py = "3.12"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
