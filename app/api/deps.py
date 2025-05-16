@@ -17,7 +17,7 @@ from app.db.session import SessionLocal
 from app.utils.security import ALGORITHM
 from app.utils.keycloak import keycloak_handler
 
-# Keycloak tiene su propio endpoint para tokens
+# Keycloack has its own token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
 
 
@@ -79,12 +79,3 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Could not validate credentials: {str(e)}",
         )
-            # pero vamos a requerir registro manual por ahora
-            raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
-        )
-    return user

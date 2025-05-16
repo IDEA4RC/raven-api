@@ -29,7 +29,7 @@ if [ ! -f .env ]; then
     echo "⚠️  Don't forget to edit the .env file with your configurations"
 fi
 
-# Initialize the database
+# Initialize database
 echo "🗄️  Initializing database..."
 python -m app.db.init_db
 

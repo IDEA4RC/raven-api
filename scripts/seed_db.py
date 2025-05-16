@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.db.session import engine, SessionLocal
 from app.models import Organization, User, UserType, Team, UserTeam, Workspace, Permit, WorkspaceHistory
 from app.utils.constants import PermitStatus, DataAccessStatus
-from app.utils.security import get_password_hash
 
 def seed_database():
     """
