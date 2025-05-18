@@ -140,8 +140,14 @@ The project includes a comprehensive control script (`raven-ctl.sh`) that simpli
    # Configure HTTPS with TLS certificate
    ./raven-ctl.sh secure
    
+   # Verify API accessibility from multiple paths
+   ./raven-ctl.sh verify
+   
    # Check the status of the deployment
    ./raven-ctl.sh status
+   
+   # Restart the deployment (useful for troubleshooting)
+   ./raven-ctl.sh restart
    
    # Clean up the deployment
    ./raven-ctl.sh cleanup
@@ -217,14 +223,70 @@ To expose the RAVEN API to the internet, you can use the control script:
 
 The script will guide you through the following options:
 
-1. **Using MetalLB (recommended for local environments)**: Configures MetalLB to provide LoadBalancer capabilities.
+1. **Using MetalLB (recommended for local environments)**: Configures MetalLB to provide LoadBalancer capabilities with a fixed IP.
 2. **Using NodePort**: Exposes the API through a specific port on the nodes.
 3. **Manual configuration**: For advanced scenarios or cloud environments.
 
-After exposure, the script will provide the necessary information to access the API, including:
-- External IP or hostname
-- Required DNS configuration
-- How to test the accessibility
+### IP Detection and Configuration
+
+The improved exposure functionality includes:
+
+- **Automatic IP detection**: The script automatically detects your server's IP interfaces and shows them for selection.
+- **Fixed IP allocation**: When using MetalLB, the script can configure it to use your server's fixed IP address.
+- **Service type detection**: The script checks the current configuration and offers appropriate options.
+- **Verification loop**: Instead of waiting a fixed time, the script actively checks if the IP has been assigned.
+
+### Verifying API Access
+
+After exposing the API, you can verify its accessibility with:
+
+```bash
+./raven-ctl.sh verify
+```
+
+This command runs comprehensive diagnostics to check accessibility from different paths:
+
+```
+┌─────────────────────────────────────────────────────┬────────┐
+│ URL                                                 │ Estado │
+├─────────────────────────────────────────────────────┼────────┤
+│ http://host01.idea.lst.tfo.upm.es/raven-api/v1/health/ │ ✅ OK   │
+│ https://host01.idea.lst.tfo.upm.es/raven-api/v1/health/ │ ✅ OK   │
+│ http://192.168.1.100/ (con Host: host01.idea.lst.tfo.upm.es) │ ✅ OK   │
+│ Port-forward al servicio interno                   │ ✅ OK   │
+└─────────────────────────────────────────────────────┴────────┘
+```
+
+The verification includes:
+- Tests all possible ways to access the API (hostname, IP, NodePort, port-forward)
+- Verifies the readiness of all pods before testing
+- Shows response codes for each access method
+- Provides detailed troubleshooting information when access fails
+- Displays logs from problematic pods
+- Checks both HTTP and HTTPS access when configured
+- Formats JSON response for better readability
+
+### Troubleshooting the Deployment
+
+If you experience issues with the deployment, you can use several tools:
+
+1. **Check the status**: `./raven-ctl.sh status`
+   - Shows the current state of all pods, services, and gateways
+   - Attempts to access the health endpoint inside the pod
+   - Multiple verification methods are attempted if one fails
+
+2. **Verify external access**: `./raven-ctl.sh verify`
+   - Tests accessibility from various entry points
+
+3. **Restart the deployment**: `./raven-ctl.sh restart`
+   - Performs a rolling restart of all pods
+   - Waits for the restart to complete
+   - Verifies the status after restart
+
+4. **Common issues and solutions**:
+   - Pods not starting: Check for image pull errors or resource constraints
+   - API not accessible: Verify Istio Gateway and VirtualService configuration
+   - HTTPS not working: Ensure the TLS certificate is properly created and referenced
 
 ## Security Considerations
 

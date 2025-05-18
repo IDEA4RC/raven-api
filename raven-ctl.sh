@@ -27,6 +27,7 @@ show_help() {
     echo -e "  ${GREEN}secure${NC}           - Configurar HTTPS para la API"
     echo -e "  ${GREEN}verify${NC}           - Verificar el acceso a la API desde diferentes URLs"
     echo -e "  ${GREEN}status${NC}           - Verificar estado del despliegue"
+    echo -e "  ${GREEN}restart${NC}          - Reiniciar el despliegue (útil para solucionar problemas)"
     echo -e "  ${GREEN}cleanup${NC}          - Eliminar el despliegue"
     echo -e "  ${GREEN}help${NC}             - Mostrar esta ayuda"
     echo -e ""
@@ -42,6 +43,7 @@ show_help() {
     echo -e "  $0 expose                   # Exponer la API a Internet"
     echo -e "  $0 secure                   # Configurar HTTPS"
     echo -e "  $0 verify                   # Verificar acceso a la API"
+    echo -e "  $0 restart                  # Reiniciar el despliegue"
     echo -e "  $0 status                   # Verificar estado"
     echo -e "  $0 cleanup                  # Eliminar el despliegue"
 }
@@ -499,12 +501,69 @@ check_status() {
         # Obtener el primer pod para verificar la salud
         POD_NAME=$(${KUBECTL_CMD} get pods -n ${NAMESPACE} -l app=raven-api -o jsonpath="{.items[0].metadata.name}")
         
-        # Verificar el endpoint de salud
-        echo -e "${YELLOW}ℹ️ Verificando endpoint de salud dentro del pod...${NC}"
-        HEALTH_CHECK=$(${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- curl -s http://localhost:8000/raven-api/v1/health/)
+        # Verificar el endpoint de salud primero dentro del pod
+        echo -e "${YELLOW}ℹ️ Intentando verificar el endpoint de salud...${NC}"
         
-        echo -e "${YELLOW}ℹ️ Respuesta del endpoint de salud:${NC}"
-        echo $HEALTH_CHECK
+        # Verificar si curl está disponible en el contenedor
+        if ${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- which curl &>/dev/null; then
+            echo -e "${YELLOW}ℹ️ Usando curl dentro del pod...${NC}"
+            HEALTH_CHECK=$(${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- curl -s http://localhost:8000/raven-api/v1/health/)
+            INTERNAL_CHECK_SUCCESS=true
+        # Verificar si wget está disponible como alternativa
+        elif ${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- which wget &>/dev/null; then
+            echo -e "${YELLOW}ℹ️ Usando wget dentro del pod...${NC}"
+            HEALTH_CHECK=$(${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- wget -q -O - http://localhost:8000/raven-api/v1/health/)
+            INTERNAL_CHECK_SUCCESS=true
+        else
+            echo -e "${YELLOW}⚠️ No se encontró herramientas (curl/wget) en el pod para verificar la salud.${NC}"
+            INTERNAL_CHECK_SUCCESS=false
+            
+            # Intentar con Python si está disponible
+            if ${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- which python &>/dev/null; then
+                echo -e "${YELLOW}ℹ️ Intentando con Python...${NC}"
+                PYTHON_CMD='import urllib.request; response = urllib.request.urlopen("http://localhost:8000/raven-api/v1/health/"); print(response.read().decode("utf-8"))'
+                HEALTH_CHECK=$(${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -c raven-api -- python -c "${PYTHON_CMD}" 2>/dev/null)
+                if [ ! -z "$HEALTH_CHECK" ]; then
+                    INTERNAL_CHECK_SUCCESS=true
+                fi
+            fi
+            
+            # Si todos los métodos anteriores fallan
+            if [ "$INTERNAL_CHECK_SUCCESS" != true ]; then
+                echo -e "${YELLOW}ℹ️ Intentando verificar externamente...${NC}"
+                # Obtener la IP del servicio interno
+                SERVICE_IP=$(${KUBECTL_CMD} get svc -n ${NAMESPACE} raven-api -o jsonpath='{.spec.clusterIP}')
+                if [ ! -z "$SERVICE_IP" ]; then
+                    # Usar kubectl port-forward para conectar con el servicio
+                    echo -e "${YELLOW}ℹ️ Iniciando port-forward al servicio...${NC}"
+                    ${KUBECTL_CMD} port-forward -n ${NAMESPACE} svc/raven-api 8888:80 &>/dev/null &
+                    PF_PID=$!
+                    sleep 2
+                    
+                    # Verificar el endpoint de salud a través del port-forward
+                    if command -v curl &>/dev/null; then
+                        HEALTH_CHECK=$(curl -s http://localhost:8888/raven-api/v1/health/)
+                        INTERNAL_CHECK_SUCCESS=true
+                    elif command -v wget &>/dev/null; then
+                        HEALTH_CHECK=$(wget -q -O - http://localhost:8888/raven-api/v1/health/)
+                        INTERNAL_CHECK_SUCCESS=true
+                    fi
+                    
+                    # Detener el port-forward
+                    kill $PF_PID 2>/dev/null
+                    wait $PF_PID 2>/dev/null
+                fi
+            fi
+        fi
+        
+        # Mostrar los resultados de la verificación
+        if [ "$INTERNAL_CHECK_SUCCESS" = true ] && [ ! -z "$HEALTH_CHECK" ]; then
+            echo -e "${GREEN}✅ Respuesta del endpoint de salud:${NC}"
+            echo $HEALTH_CHECK
+        else
+            echo -e "${YELLOW}⚠️ No se pudo verificar el endpoint de salud internamente.${NC}"
+            echo -e "${YELLOW}ℹ️ Se recomienda ejecutar './raven-ctl.sh verify' para verificar el acceso externo.${NC}"
+        fi
     else
         echo -e "${RED}❌ Algunos pods no están en estado 'Running'.${NC}"
         echo -e "${YELLOW}ℹ️ Verificando logs para diagnosticar problemas...${NC}"
@@ -536,6 +595,19 @@ verify_api_access() {
         exit 1
     fi
     
+    # Verificar el estado del despliegue
+    TOTAL_PODS=$(${KUBECTL_CMD} get pods -n ${NAMESPACE} -l app=raven-api -o name | wc -l)
+    READY_PODS=$(${KUBECTL_CMD} get pods -n ${NAMESPACE} -l app=raven-api -o jsonpath='{range .items[*]}{.status.containerStatuses[?(@.name=="raven-api")].ready}{"\n"}{end}' | grep -c "true")
+    
+    if [ "$READY_PODS" -lt "$TOTAL_PODS" ]; then
+        echo -e "${YELLOW}⚠️ No todos los pods están listos ($READY_PODS/$TOTAL_PODS). Algunos servicios pueden no estar disponibles.${NC}"
+        echo -e "${YELLOW}ℹ️ Detalles de los pods:${NC}"
+        ${KUBECTL_CMD} get pods -n ${NAMESPACE} -l app=raven-api
+        echo -e "${YELLOW}ℹ️ Se continuará con la verificación de acceso, pero podrían haber errores.${NC}"
+    else
+        echo -e "${GREEN}✅ Todos los pods están listos ($READY_PODS/$TOTAL_PODS).${NC}"
+    fi
+    
     # Obtener la IP del servidor
     SERVER_IP=$(hostname -I | awk '{print $1}')
     
@@ -554,9 +626,9 @@ verify_api_access() {
     
     # Crear tabla de IPs y endpoints a probar
     echo -e "${YELLOW}ℹ️ Probando acceso a la API desde varias URLs...${NC}"
-    echo -e "┌───────────────────────────────────────────┬────────┐"
-    echo -e "│ URL                                       │ Estado │"
-    echo -e "├───────────────────────────────────────────┼────────┤"
+    echo -e "┌─────────────────────────────────────────────────────┬────────┐"
+    echo -e "│ URL                                                 │ Estado │"
+    echo -e "├─────────────────────────────────────────────────────┼────────┤"
     
     # Probar hostname normal (requiere entrada en /etc/hosts)
     STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://$HOST/raven-api/v1/health/ 2>/dev/null || echo "ERROR")
@@ -565,7 +637,7 @@ verify_api_access() {
     else
         STATUS="${RED}❌ $STATUS_CODE${NC}"
     fi
-    echo -e "│ http://$HOST/raven-api/v1/health/                  │ $STATUS │"
+    echo -e "│ http://$HOST/raven-api/v1/health/              │ $STATUS │"
     
     # Probar https si está configurado
     if ${KUBECTL_CMD} get secret -n istio-system raven-api-cert &>/dev/null; then
@@ -575,7 +647,7 @@ verify_api_access() {
         else
             STATUS="${RED}❌ $STATUS_CODE${NC}"
         fi
-        echo -e "│ https://$HOST/raven-api/v1/health/ (inseguro)      │ $STATUS │"
+        echo -e "│ https://$HOST/raven-api/v1/health/ (inseguro)  │ $STATUS │"
     fi
     
     # Probar IP externa directa
@@ -595,24 +667,57 @@ verify_api_access() {
         else
             STATUS="${RED}❌ $STATUS_CODE${NC}"
         fi
-        echo -e "│ http://$SERVER_IP:$HTTP_PORT/ (NodePort)     │ $STATUS │"
+        echo -e "│ http://$SERVER_IP:$HTTP_PORT/ (NodePort)         │ $STATUS │"
     fi
     
-    echo -e "└───────────────────────────────────────────┴────────┘"
+    # Probar el servicio de Kubernetes directamente (port-forward)
+    echo -e "│ Port-forward al servicio interno                   │ ${YELLOW}⏳${NC} │"
+    ${KUBECTL_CMD} port-forward -n ${NAMESPACE} svc/raven-api 8899:80 &>/dev/null &
+    PF_PID=$!
+    sleep 3
     
-    # Verificar si alguna prueba tuvo éxito
+    STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8899/raven-api/v1/health/ 2>/dev/null || echo "ERROR")
+    kill $PF_PID 2>/dev/null
+    wait $PF_PID 2>/dev/null
+    
+    if [ "$STATUS_CODE" = "200" ]; then
+        STATUS="${GREEN}✅ OK${NC}"
+    else
+        STATUS="${RED}❌ $STATUS_CODE${NC}"
+    fi
+    echo -e "│ Port-forward al servicio interno                   │ $STATUS │"
+    
+    echo -e "└─────────────────────────────────────────────────────┴────────┘"
+    
+    # Verificar si alguna prueba tuvo éxito y mostrar la respuesta
+    RESPONSE=""
+    
     if curl -s http://$HOST/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
-        echo -e "${GREEN}✅ Respuesta del endpoint de salud:${NC}"
-        curl -s http://$HOST/raven-api/v1/health/
-        echo
+        RESPONSE=$(curl -s http://$HOST/raven-api/v1/health/)
+        ACCESS_METHOD="hostname directo (http://$HOST/)"
+    elif curl -s -k https://$HOST/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
+        RESPONSE=$(curl -s -k https://$HOST/raven-api/v1/health/)
+        ACCESS_METHOD="HTTPS (https://$HOST/)"
     elif curl -s -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
-        echo -e "${GREEN}✅ Respuesta del endpoint de salud (usando IP directa):${NC}"
-        curl -s -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/
-        echo
+        RESPONSE=$(curl -s -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/)
+        ACCESS_METHOD="IP directa (http://$EXTERNAL_IP/ con Host: $HOST)"
     elif [ ! -z "$HTTP_PORT" ] && curl -s -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
-        echo -e "${GREEN}✅ Respuesta del endpoint de salud (usando NodePort):${NC}"
-        curl -s -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/
-        echo
+        RESPONSE=$(curl -s -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/)
+        ACCESS_METHOD="NodePort (http://$SERVER_IP:$HTTP_PORT/)"
+    elif curl -s http://localhost:8899/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
+        ${KUBECTL_CMD} port-forward -n ${NAMESPACE} svc/raven-api 8899:80 &>/dev/null &
+        PF_PID=$!
+        sleep 2
+        RESPONSE=$(curl -s http://localhost:8899/raven-api/v1/health/)
+        kill $PF_PID 2>/dev/null
+        wait $PF_PID 2>/dev/null
+        ACCESS_METHOD="port-forward al servicio interno"
+    fi
+    
+    if [ ! -z "$RESPONSE" ]; then
+        echo -e "${GREEN}✅ La API es accesible via $ACCESS_METHOD${NC}"
+        echo -e "${YELLOW}ℹ️ Respuesta del endpoint de salud:${NC}"
+        echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
     else
         echo -e "${RED}❌ No se pudo acceder al endpoint de salud.${NC}"
         
@@ -630,7 +735,41 @@ verify_api_access() {
         echo -e "6. Si usas HTTPS, verifica que el certificado esté creado correctamente"
         echo -e "7. Intenta reiniciar el deployment:"
         echo -e "   ${KUBECTL_CMD} rollout restart deployment -n $NAMESPACE raven-api"
+        
+        # Verificar específicamente los pods con problemas
+        PODS_WITH_ISSUES=$(${KUBECTL_CMD} get pods -n ${NAMESPACE} | grep -v "2/2" | grep -v "NAME" | awk '{print $1}')
+        if [ ! -z "$PODS_WITH_ISSUES" ]; then
+            echo -e "\n${YELLOW}ℹ️ Detalles de los pods con problemas:${NC}"
+            for POD in $PODS_WITH_ISSUES; do
+                echo -e "${YELLOW}🔍 Estado del pod $POD:${NC}"
+                ${KUBECTL_CMD} describe pod -n ${NAMESPACE} $POD | grep -A 5 "State:"
+                
+                echo -e "${YELLOW}📜 Últimas líneas de logs:${NC}"
+                ${KUBECTL_CMD} logs -n ${NAMESPACE} $POD -c raven-api --tail=10
+                echo
+            done
+        fi
     fi
+}
+
+# Función para reiniciar el despliegue
+restart_deployment() {
+    echo -e "${YELLOW}🔄 Reiniciando despliegue de RAVEN API...${NC}"
+    
+    # Verificar si la API está desplegada
+    if ! ${KUBECTL_CMD} get deployment -n ${NAMESPACE} raven-api &>/dev/null; then
+        echo -e "${RED}❌ La API no está desplegada. Ejecuta primero 'deploy'.${NC}"
+        exit 1
+    fi
+    
+    # Reiniciar el despliegue
+    ${KUBECTL_CMD} rollout restart deployment -n ${NAMESPACE} raven-api
+    
+    echo -e "${YELLOW}⏳ Esperando a que los pods se reinicien...${NC}"
+    ${KUBECTL_CMD} rollout status deployment -n ${NAMESPACE} raven-api --timeout=120s
+    
+    echo -e "${GREEN}✅ Despliegue reiniciado. Ejecutando verificación de estado...${NC}"
+    check_status
 }
 
 # Función para limpiar el despliegue
@@ -742,6 +881,9 @@ main() {
             ;;
         verify)
             verify_api_access
+            ;;
+        restart)
+            restart_deployment
             ;;
         cleanup)
             cleanup
