@@ -25,6 +25,7 @@ show_help() {
     echo -e "  ${GREEN}deploy${NC}           - Desplegar la RAVEN API en Kubernetes"
     echo -e "  ${GREEN}expose${NC}           - Exponer la API a Internet (HTTP)"
     echo -e "  ${GREEN}secure${NC}           - Configurar HTTPS para la API"
+    echo -e "  ${GREEN}verify${NC}           - Verificar el acceso a la API desde diferentes URLs"
     echo -e "  ${GREEN}status${NC}           - Verificar estado del despliegue"
     echo -e "  ${GREEN}cleanup${NC}          - Eliminar el despliegue"
     echo -e "  ${GREEN}help${NC}             - Mostrar esta ayuda"
@@ -40,7 +41,9 @@ show_help() {
     echo -e "  $0 deploy --skip-build      # Desplegar sin reconstruir la imagen"
     echo -e "  $0 expose                   # Exponer la API a Internet"
     echo -e "  $0 secure                   # Configurar HTTPS"
+    echo -e "  $0 verify                   # Verificar acceso a la API"
     echo -e "  $0 status                   # Verificar estado"
+    echo -e "  $0 cleanup                  # Eliminar el despliegue"
 }
 
 # Función para verificar prerrequisitos
@@ -149,10 +152,46 @@ deploy_api() {
 expose_api() {
     echo -e "${YELLOW}🌐 Exponiendo la RAVEN API a Internet...${NC}"
     
+    # Verificar si la API está desplegada
+    if ! ${KUBECTL_CMD} get deployment -n ${NAMESPACE} raven-api &>/dev/null; then
+        echo -e "${RED}❌ La API no está desplegada. Ejecuta primero 'deploy'.${NC}"
+        exit 1
+    fi
+    
+    # Verificar el estado del despliegue
+    READY_REPLICAS=$(${KUBECTL_CMD} get deployment -n ${NAMESPACE} raven-api -o jsonpath='{.status.readyReplicas}')
+    if [ -z "$READY_REPLICAS" ] || [ "$READY_REPLICAS" -eq 0 ]; then
+        echo -e "${RED}⚠️ El despliegue no está listo. Verificando estado...${NC}"
+        ${KUBECTL_CMD} get pods -n ${NAMESPACE} -l app=raven-api
+        ${KUBECTL_CMD} describe deployment -n ${NAMESPACE} raven-api
+        echo -e "${YELLOW}ℹ️ Espera a que el despliegue esté listo o verifica los errores.${NC}"
+        read -p "¿Deseas continuar de todos modos? (S/N): " CONTINUE_ANYWAY
+        if [[ ! $CONTINUE_ANYWAY =~ ^[Ss]$ ]]; then
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✅ El despliegue está listo. Continuando...${NC}"
+    fi
+    
     # Verificar si el servicio istio-ingressgateway existe
     if ! ${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway &>/dev/null; then
         echo -e "${RED}❌ No se encontró el servicio Istio Ingress Gateway.${NC}"
         exit 1
+    fi
+    
+    # Obtener interfaces de red e IPs del servidor
+    echo -e "${YELLOW}ℹ️ Interfaces de red disponibles:${NC}"
+    ip -o addr show | grep inet | grep -v "127.0.0.1" | awk '{print $2, $4}' | column -t
+    
+    # Autodetectar la IP principal del servidor (excluyendo IPs locales y de Docker)
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    echo -e "${YELLOW}ℹ️ IP principal detectada: $SERVER_IP${NC}"
+    read -p "¿Usar esta IP? De lo contrario, introduce la IP que deseas usar: " CUSTOM_IP
+    
+    if [ ! -z "$CUSTOM_IP" ]; then
+        SERVER_IP=$CUSTOM_IP
+        echo -e "${YELLOW}ℹ️ Usando IP personalizada: $SERVER_IP${NC}"
     fi
     
     # Obtener el tipo actual de servicio
@@ -163,7 +202,7 @@ expose_api() {
     if [ "$INGRESS_TYPE" != "LoadBalancer" ]; then
         echo -e "${YELLOW}ℹ️ Se recomienda cambiar a tipo LoadBalancer para exponer la API.${NC}"
         echo -e "${YELLOW}ℹ️ Opciones disponibles:${NC}"
-        echo -e "1. Configurar MetalLB (recomendado para entornos locales)"
+        echo -e "1. Configurar MetalLB con la IP fija del servidor ($SERVER_IP)"
         echo -e "2. Cambiar a NodePort"
         echo -e "3. Mantener como $INGRESS_TYPE"
         
@@ -171,21 +210,67 @@ expose_api() {
         
         case $EXPOSE_OPTION in
             1)
-                # Configurar MetalLB
-                echo -e "${YELLOW}🔄 Configurando MetalLB...${NC}"
+                # Configurar MetalLB con la IP fija del servidor
+                echo -e "${YELLOW}🔄 Configurando MetalLB con IP fija...${NC}"
                 
-                # Determinar la interfaz de red primaria y su rango de direcciones IP
-                INTERFACE=$(ip route | grep default | awk '{print $5}')
-                IP_RANGE=$(ip -4 addr show $INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 | sed 's/\.[0-9]*$/.200-\0.250/')
+                # Crear un rango que incluya solo la IP del servidor
+                IP_RANGE="$SERVER_IP-$SERVER_IP"
                 
-                echo -e "${YELLOW}ℹ️ Interface de red primaria: $INTERFACE${NC}"
                 echo -e "${YELLOW}ℹ️ Rango de IPs para MetalLB: $IP_RANGE${NC}"
                 
-                # Habilitar el complemento MetalLB
+                # Verificar si MetalLB ya está habilitado
+                microk8s status | grep -q "metallb" && METALLB_ENABLED=true || METALLB_ENABLED=false
+                
+                if [ "$METALLB_ENABLED" = true ]; then
+                    echo -e "${YELLOW}ℹ️ MetalLB ya está habilitado. Reconfigurando...${NC}"
+                    # Para reconfigurar MetalLB, primero lo deshabilitamos
+                    microk8s disable metallb
+                    sleep 2
+                fi
+                
+                # Habilitar el complemento MetalLB con la nueva configuración
+                echo -e "${YELLOW}🔄 Habilitando MetalLB con el rango: $IP_RANGE${NC}"
                 microk8s enable metallb:$IP_RANGE
                 
                 # Cambiar el servicio a LoadBalancer
                 ${KUBECTL_CMD} patch svc istio-ingressgateway -n istio-system -p '{"spec": {"type": "LoadBalancer"}}'
+                
+                echo -e "${YELLOW}⏳ Esperando a que se asigne la IP al servicio...${NC}"
+                
+                # Esperar con un timeout y verificar la asignación de IP
+                COUNTER=0
+                MAX_TRIES=30
+                while [ $COUNTER -lt $MAX_TRIES ]; do
+                    EXTERNAL_IP=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+                    
+                    if [ ! -z "$EXTERNAL_IP" ]; then
+                        echo -e "${GREEN}✅ IP asignada: $EXTERNAL_IP${NC}"
+                        break
+                    fi
+                    
+                    echo -n "."
+                    sleep 2
+                    COUNTER=$((COUNTER+1))
+                    
+                    # Cada 5 intentos, mostrar el estado del servicio
+                    if [ $((COUNTER % 5)) -eq 0 ]; then
+                        echo -e "\n${YELLOW}ℹ️ Estado actual del servicio (intento $COUNTER de $MAX_TRIES):${NC}"
+                        ${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o wide
+                    fi
+                done
+                echo # Nueva línea para mejorar formato
+                
+                # Si después de los intentos no se asignó IP, recargar el servicio
+                if [ -z "$EXTERNAL_IP" ]; then
+                    echo -e "${YELLOW}⚠️ No se asignó IP automáticamente. Intentando forzar la asignación...${NC}"
+                    # Forzar la actualización del servicio
+                    ${KUBECTL_CMD} patch svc istio-ingressgateway -n istio-system -p '{"spec": {"type": "ClusterIP"}}'
+                    sleep 3
+                    ${KUBECTL_CMD} patch svc istio-ingressgateway -n istio-system -p '{"spec": {"type": "LoadBalancer"}}'
+                    
+                    echo -e "${YELLOW}⏳ Esperando nuevamente la asignación de IP...${NC}"
+                    sleep 10
+                fi
                 ;;
             2)
                 # Cambiar a NodePort
@@ -200,43 +285,105 @@ expose_api() {
                 return 1
                 ;;
         esac
-    fi
-    
-    # Esperar a que el servicio esté listo
-    echo -e "${YELLOW}⏳ Esperando a que el servicio esté listo...${NC}"
-    sleep 5
-    
-    # Obtener y mostrar información de acceso
-    echo -e "${YELLOW}🔍 Obteniendo información de acceso...${NC}"
-    
-    # Obtener tipo actualizado
-    INGRESS_TYPE=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.spec.type}')
-    
-    if [ "$INGRESS_TYPE" == "LoadBalancer" ]; then
-        # Obtener la IP externa
+    else
+        # Si ya es LoadBalancer pero no tiene IP externa, configurar MetalLB
         EXTERNAL_IP=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
         
         if [ -z "$EXTERNAL_IP" ]; then
-            echo -e "${YELLOW}⚠️ Esperando asignación de IP externa...${NC}"
-            echo -e "${YELLOW}ℹ️ Esto puede tardar unos minutos. Verificando detalles del servicio:${NC}"
-            ${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o wide
-        else
-            echo -e "${GREEN}✅ API expuesta en LoadBalancer con IP: $EXTERNAL_IP${NC}"
-            echo -e "${YELLOW}ℹ️ Para acceder localmente, agrega esta línea a tu archivo /etc/hosts:${NC}"
-            echo -e "${GREEN}$EXTERNAL_IP $HOST${NC}"
+            echo -e "${YELLOW}⚠️ El servicio ya es de tipo LoadBalancer pero no tiene IP asignada.${NC}"
+            echo -e "${YELLOW}ℹ️ ¿Deseas configurar MetalLB con la IP fija del servidor? (S/N): ${NC}"
+            read -p "" CONFIGURE_METALLB
+            
+            if [[ $CONFIGURE_METALLB =~ ^[Ss]$ ]]; then
+                # Configurar MetalLB con la IP fija
+                IP_RANGE="$SERVER_IP-$SERVER_IP"
+                echo -e "${YELLOW}ℹ️ Configurando MetalLB con rango: $IP_RANGE${NC}"
+                
+                # Verificar si MetalLB ya está habilitado
+                microk8s status | grep -q "metallb" && METALLB_ENABLED=true || METALLB_ENABLED=false
+                
+                if [ "$METALLB_ENABLED" = true ]; then
+                    echo -e "${YELLOW}ℹ️ MetalLB ya está habilitado. Reconfigurando...${NC}"
+                    microk8s disable metallb
+                    sleep 2
+                fi
+                
+                # Habilitar MetalLB con la nueva configuración
+                microk8s enable metallb:$IP_RANGE
+                
+                # Recargar el servicio para aplicar la nueva configuración
+                ${KUBECTL_CMD} patch svc istio-ingressgateway -n istio-system -p '{"spec": {"type": "ClusterIP"}}' 
+                sleep 3
+                ${KUBECTL_CMD} patch svc istio-ingressgateway -n istio-system -p '{"spec": {"type": "LoadBalancer"}}'
+                
+                echo -e "${YELLOW}⏳ Esperando a que se asigne la IP al servicio...${NC}"
+                sleep 10
+            fi
         fi
-    elif [ "$INGRESS_TYPE" == "NodePort" ]; then
-        # Para NodePort, obtener la IP del nodo y el puerto
-        NODE_IP=$(hostname -I | awk '{print $1}')
-        NODE_PORT=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+    fi
+    
+    # Verificar nuevamente la IP externa después de los cambios
+    EXTERNAL_IP=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    
+    # Si aún no tiene IP asignada, mostrar detalles del servicio y usar IP del servidor
+    if [ -z "$EXTERNAL_IP" ]; then
+        echo -e "${YELLOW}⚠️ El servicio sigue sin tener una IP externa asignada.${NC}"
+        echo -e "${YELLOW}ℹ️ Detalles del servicio:${NC}"
+        ${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o wide
         
-        echo -e "${GREEN}✅ API expuesta en NodePort: $NODE_IP:$NODE_PORT${NC}"
-        echo -e "${YELLOW}ℹ️ Para acceder localmente, agrega esta línea a tu archivo /etc/hosts:${NC}"
-        echo -e "${GREEN}$NODE_IP $HOST${NC}"
-        echo -e "${YELLOW}ℹ️ Y accede mediante: http://$HOST:$NODE_PORT${NC}"
+        # Extraer puertos NodePort si están disponibles
+        HTTP_PORT=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+        HTTPS_PORT=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+        
+        if [ ! -z "$HTTP_PORT" ]; then
+            echo -e "${YELLOW}ℹ️ Puertos NodePort detectados - HTTP: $HTTP_PORT, HTTPS: $HTTPS_PORT${NC}"
+            echo -e "${YELLOW}ℹ️ Puedes acceder a la API con: http://$SERVER_IP:$HTTP_PORT/raven-api/v1/${NC}"
+        fi
+        
+        # Usar la IP del servidor como alternativa
+        echo -e "${YELLOW}ℹ️ Como alternativa, puedes usar la IP del servidor: $SERVER_IP${NC}"
+        echo -e "${YELLOW}ℹ️ Configura tu DNS o archivo hosts para apuntar $HOST a $SERVER_IP${NC}"
+        EXTERNAL_IP=$SERVER_IP
     else
-        echo -e "${YELLOW}ℹ️ La API está expuesta con tipo de servicio: $INGRESS_TYPE${NC}"
-        echo -e "${YELLOW}ℹ️ Este tipo de servicio puede requerir configuración adicional.${NC}"
+        echo -e "${GREEN}✅ MetalLB ha asignado correctamente la IP: $EXTERNAL_IP${NC}"
+    fi
+    
+    # Mostrar información de acceso
+    echo -e "${GREEN}✅ API expuesta con éxito.${NC}"
+    echo -e "${YELLOW}ℹ️ Para acceder localmente, agrega esta línea a tu archivo /etc/hosts:${NC}"
+    echo -e "${GREEN}$EXTERNAL_IP $HOST${NC}"
+    echo -e "${YELLOW}ℹ️ La API será accesible en: http://$HOST/raven-api/v1/${NC}"
+    
+    # Verificar si el hostname ya está en /etc/hosts
+    if grep -q "$HOST" /etc/hosts; then
+        echo -e "${YELLOW}ℹ️ El hostname ya existe en /etc/hosts. Considera actualizarlo si es necesario.${NC}"
+    else
+        echo -e "${YELLOW}ℹ️ Para agregar automáticamente la entrada a /etc/hosts, ejecuta:${NC}"
+        echo -e "sudo sh -c \"echo '$EXTERNAL_IP $HOST' >> /etc/hosts\""
+    fi
+    
+    # Verificar acceso a la API
+    echo -e "${YELLOW}ℹ️ ¿Deseas verificar el acceso a la API? (S/N): ${NC}"
+    read -p "" VERIFY_ACCESS
+    
+    if [[ $VERIFY_ACCESS =~ ^[Ss]$ ]]; then
+        echo -e "${YELLOW}⏳ Verificando acceso a la API...${NC}"
+        # Intentar con el hostname
+        echo -e "${YELLOW}ℹ️ Intentando acceder con el hostname...${NC}"
+        curl -s -o /dev/null -w "%{http_code}" http://$HOST/raven-api/v1/health/ || echo "Falló la conexión"
+        
+        # Intentar con la IP directamente
+        echo -e "${YELLOW}ℹ️ Intentando acceder con la IP...${NC}"
+        curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/ || echo "Falló la conexión"
+        
+        # Verificar si hay puertos NodePort y probar también
+        if [ ! -z "$HTTP_PORT" ]; then
+            echo -e "${YELLOW}ℹ️ Intentando acceder con NodePort...${NC}"
+            curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/ || echo "Falló la conexión"
+        fi
+        
+        echo -e "${YELLOW}ℹ️ Si ves un código 200, la API está accesible correctamente.${NC}"
+        echo -e "${YELLOW}ℹ️ Si ves otro código o un error, puede que haya problemas de acceso o configuración.${NC}"
     fi
     
     echo -e "${GREEN}✅ Proceso de exposición completado.${NC}"
@@ -379,6 +526,113 @@ check_status() {
     ${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o wide
 }
 
+# Función para verificar el acceso a la API
+verify_api_access() {
+    echo -e "${YELLOW}🔍 Verificando acceso a la RAVEN API...${NC}"
+    
+    # Verificar si la API está desplegada
+    if ! ${KUBECTL_CMD} get deployment -n ${NAMESPACE} raven-api &>/dev/null; then
+        echo -e "${RED}❌ La API no está desplegada. Ejecuta primero 'deploy'.${NC}"
+        exit 1
+    fi
+    
+    # Obtener la IP del servidor
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    # Obtener la IP externa del servicio istio-ingressgateway
+    EXTERNAL_IP=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    
+    # Si no hay IP externa, usar la IP del servidor
+    if [ -z "$EXTERNAL_IP" ]; then
+        echo -e "${YELLOW}⚠️ No se encontró IP externa en el servicio.${NC}"
+        EXTERNAL_IP=$SERVER_IP
+        
+        # Verificar si hay puertos NodePort
+        HTTP_PORT=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+        HTTPS_PORT=$(${KUBECTL_CMD} get svc -n istio-system istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+    fi
+    
+    # Crear tabla de IPs y endpoints a probar
+    echo -e "${YELLOW}ℹ️ Probando acceso a la API desde varias URLs...${NC}"
+    echo -e "┌───────────────────────────────────────────┬────────┐"
+    echo -e "│ URL                                       │ Estado │"
+    echo -e "├───────────────────────────────────────────┼────────┤"
+    
+    # Probar hostname normal (requiere entrada en /etc/hosts)
+    STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://$HOST/raven-api/v1/health/ 2>/dev/null || echo "ERROR")
+    if [ "$STATUS_CODE" = "200" ]; then
+        STATUS="${GREEN}✅ OK${NC}"
+    else
+        STATUS="${RED}❌ $STATUS_CODE${NC}"
+    fi
+    echo -e "│ http://$HOST/raven-api/v1/health/                  │ $STATUS │"
+    
+    # Probar https si está configurado
+    if ${KUBECTL_CMD} get secret -n istio-system raven-api-cert &>/dev/null; then
+        STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -k https://$HOST/raven-api/v1/health/ 2>/dev/null || echo "ERROR")
+        if [ "$STATUS_CODE" = "200" ]; then
+            STATUS="${GREEN}✅ OK${NC}"
+        else
+            STATUS="${RED}❌ $STATUS_CODE${NC}"
+        fi
+        echo -e "│ https://$HOST/raven-api/v1/health/ (inseguro)      │ $STATUS │"
+    fi
+    
+    # Probar IP externa directa
+    STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/ 2>/dev/null || echo "ERROR")
+    if [ "$STATUS_CODE" = "200" ]; then
+        STATUS="${GREEN}✅ OK${NC}"
+    else
+        STATUS="${RED}❌ $STATUS_CODE${NC}"
+    fi
+    echo -e "│ http://$EXTERNAL_IP/ (con Host: $HOST)       │ $STATUS │"
+    
+    # Probar NodePort si está disponible
+    if [ ! -z "$HTTP_PORT" ]; then
+        STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/ 2>/dev/null || echo "ERROR")
+        if [ "$STATUS_CODE" = "200" ]; then
+            STATUS="${GREEN}✅ OK${NC}"
+        else
+            STATUS="${RED}❌ $STATUS_CODE${NC}"
+        fi
+        echo -e "│ http://$SERVER_IP:$HTTP_PORT/ (NodePort)     │ $STATUS │"
+    fi
+    
+    echo -e "└───────────────────────────────────────────┴────────┘"
+    
+    # Verificar si alguna prueba tuvo éxito
+    if curl -s http://$HOST/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
+        echo -e "${GREEN}✅ Respuesta del endpoint de salud:${NC}"
+        curl -s http://$HOST/raven-api/v1/health/
+        echo
+    elif curl -s -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
+        echo -e "${GREEN}✅ Respuesta del endpoint de salud (usando IP directa):${NC}"
+        curl -s -H "Host: $HOST" http://$EXTERNAL_IP/raven-api/v1/health/
+        echo
+    elif [ ! -z "$HTTP_PORT" ] && curl -s -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/ 2>/dev/null | grep -q "status"; then
+        echo -e "${GREEN}✅ Respuesta del endpoint de salud (usando NodePort):${NC}"
+        curl -s -H "Host: $HOST" http://$SERVER_IP:$HTTP_PORT/raven-api/v1/health/
+        echo
+    else
+        echo -e "${RED}❌ No se pudo acceder al endpoint de salud.${NC}"
+        
+        # Ofrecer sugerencias de solución de problemas
+        echo -e "${YELLOW}ℹ️ Sugerencias de solución de problemas:${NC}"
+        echo -e "1. Verifica que el namespace '$NAMESPACE' existe y tiene los recursos correctos:"
+        echo -e "   ${KUBECTL_CMD} get all -n $NAMESPACE"
+        echo -e "2. Verifica que los pods están en estado 'Running':"
+        echo -e "   ${KUBECTL_CMD} get pods -n $NAMESPACE"
+        echo -e "3. Revisa los logs de los pods:"
+        echo -e "   ${KUBECTL_CMD} logs -n $NAMESPACE deployment/raven-api"
+        echo -e "4. Verifica la configuración del VirtualService y Gateway:"
+        echo -e "   ${KUBECTL_CMD} get virtualservice,gateway -n $NAMESPACE -o yaml"
+        echo -e "5. Asegúrate de que la entrada en /etc/hosts es correcta para $HOST"
+        echo -e "6. Si usas HTTPS, verifica que el certificado esté creado correctamente"
+        echo -e "7. Intenta reiniciar el deployment:"
+        echo -e "   ${KUBECTL_CMD} rollout restart deployment -n $NAMESPACE raven-api"
+    fi
+}
+
 # Función para limpiar el despliegue
 cleanup() {
     echo -e "${YELLOW}🧹 Limpiando despliegue de RAVEN API...${NC}"
@@ -485,6 +739,9 @@ main() {
             ;;
         status)
             check_status
+            ;;
+        verify)
+            verify_api_access
             ;;
         cleanup)
             cleanup
