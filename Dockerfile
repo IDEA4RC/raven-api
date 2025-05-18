@@ -12,8 +12,8 @@ COPY requirements.txt pyproject.toml ./
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install dependencies using uv
-RUN uv pip install --no-cache-dir -r requirements.txt
+# Install dependencies using uv with --system flag to install without a virtual environment
+RUN uv pip install --system --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
