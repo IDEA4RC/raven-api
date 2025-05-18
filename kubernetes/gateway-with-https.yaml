@@ -1,0 +1,25 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: raven-gateway
+spec:
+  selector:
+    istio: ingressgateway # Use the default Istio ingress gateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "host01.idea.lst.tfo.upm.es"
+    tls:
+      httpsRedirect: true # Redireccionar HTTP a HTTPS
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "host01.idea.lst.tfo.upm.es"
+    tls:
+      mode: SIMPLE # Usar TLS en modo simple
+      credentialName: raven-api-cert # Nombre del secreto que contiene el certificado
