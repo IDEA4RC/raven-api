@@ -22,6 +22,12 @@ def seed_database():
     db = SessionLocal()
     
     try:
+        # Check if database already has data
+        existing_users = db.query(User).first()
+        if existing_users:
+            print("Database already contains data. Skipping seed process.")
+            return
+            
         # Create organizations
         print("Creating organizations...")
         org1 = Organization(

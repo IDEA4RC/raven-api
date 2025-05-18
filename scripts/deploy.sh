@@ -5,7 +5,7 @@
 NAMESPACE="raven"
 IMAGE_NAME="raven-api"
 IMAGE_TAG="latest"
-REGISTRY=""  # Change to your container registry if needed
+REGISTRY="" 
 
 # Colors
 GREEN='\033[0;32m'
@@ -99,6 +99,15 @@ kubectl apply -f kubernetes/virtual-service.yaml -n ${NAMESPACE}
 # Verificar el estado del despliegue
 echo -e "${YELLOW}🔍 Verificando estado del despliegue...${NC}"
 kubectl get pods -n ${NAMESPACE}
+
+# Esperar a que todos los pods estén listos
+echo -e "${YELLOW}⏳ Esperando a que los pods estén listos...${NC}"
+kubectl wait --for=condition=ready pod -l app=raven-api -n ${NAMESPACE} --timeout=120s
+
+# Inicializar la base de datos con datos de ejemplo
+echo -e "${YELLOW}🗃️ Inicializando la base de datos con datos de ejemplo...${NC}"
+POD_NAME=$(kubectl get pods -n ${NAMESPACE} -l app=raven-api -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -n ${NAMESPACE} ${POD_NAME} -- python -m scripts.seed_db
 
 echo -e "${GREEN}✅ Despliegue completado. Verifica el estado con 'kubectl get pods -n ${NAMESPACE}'${NC}"
 echo -e "${GREEN}📊 Puedes monitorear el servicio con las herramientas de Istio (Kiali, Jaeger, etc.)${NC}"
