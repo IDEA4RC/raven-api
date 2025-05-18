@@ -5,7 +5,7 @@
 NAMESPACE="raven"
 IMAGE_NAME="raven-api"
 IMAGE_TAG="latest"
-REGISTRY="" 
+REGISTRY="localhost:32000"  # Registro local de MicroK8s
 KUBECTL_CMD="microk8s kubectl"  # Usar microk8s kubectl directamente
 
 # Colores
@@ -20,15 +20,18 @@ echo -e "${GREEN}🚀 Iniciando despliegue de RAVEN API en Kubernetes con Istio$
 echo -e "${YELLOW}📦 Construyendo imagen Docker (sin caché)...${NC}"
 docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} .
 
+# Etiquetar la imagen para el registro local de MicroK8s
+echo -e "${YELLOW}🏷️ Etiquetando imagen para el registro local de MicroK8s...${NC}"
+docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+
+# Enviar la imagen al registro local de MicroK8s
+echo -e "${YELLOW}📤 Enviando imagen al registro local...${NC}"
+docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+
 # Verificar si se especificó un registro
-if [ ! -z "$REGISTRY" ]; then
-    # Etiquetar imagen para el registro
-    echo -e "${YELLOW}🏷️  Etiquetando imagen para registro...${NC}"
-    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-    
-    # Enviar imagen al registro
-    echo -e "${YELLOW}📤 Enviando imagen al registro...${NC}"
-    docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+if [ -z "$REGISTRY" ]; then
+    echo -e "${RED}❌ Error: No se ha especificado un registro. Usando imagen local.${NC}"
+    # Nota: En este caso podríamos manejar el flujo de otra manera si se requiere
 fi
 
 # Verificar la disponibilidad de microk8s kubectl

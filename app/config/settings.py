@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Prometheus
     ENABLE_PROMETHEUS: bool = False
     METRICS_PORT: int = 8000
+    
+    # Host URL (para configurar endpoints externos)
+    HOST_URL: str = "http://localhost:8000"
 
     model_config = {
         "case_sensitive": True,

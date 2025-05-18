@@ -11,4 +11,4 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "host01.lst.tfo.upm.es"
+    - "host01.idea.lst.tfo.upm.es"
