@@ -2,18 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install uv
-RUN pip install --no-cache-dir uv 
-
 # Copy requirements files
-COPY requirements.txt pyproject.toml ./
+COPY requirements.txt ./
 
 # Configure environment variables to avoid creating .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install dependencies using uv with --system flag to install without a virtual environment
-RUN uv pip install --system --no-cache-dir -r requirements.txt
+# Install dependencies with pip (avoiding uv)
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .

@@ -1,113 +1,89 @@
 #!/bin/bash
-# Script to build and deploy to Kubernetes with Istio
+# Script para construir e implementar en Kubernetes con Istio
 
-# Configuration
+# Configuración
 NAMESPACE="raven"
 IMAGE_NAME="raven-api"
 IMAGE_TAG="latest"
 REGISTRY="" 
+KUBECTL_CMD="microk8s kubectl"  # Usar microk8s kubectl directamente
 
-# Colors
+# Colores
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Sin Color
 
-echo -e "${GREEN}🚀 Starting deployment of RAVEN API in Kubernetes with Istio${NC}"
+echo -e "${GREEN}🚀 Iniciando despliegue de RAVEN API en Kubernetes con Istio${NC}"
 
-# Building the image
-echo -e "${YELLOW}🔨 Building the Docker image...${NC}"
-docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+# Construir la imagen Docker (sin usar caché)
+echo -e "${YELLOW}📦 Construyendo imagen Docker (sin caché)...${NC}"
+docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} .
 
-# Create namespace if it doesn't exist
-echo -e "${YELLOW}🌍 Creating namespace if it doesn't exist...${NC}"
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-
-# Label namespace for Istio injection
-echo -e "${YELLOW}🏷️ Enabling Istio injection for namespace...${NC}"
-kubectl label namespace ${NAMESPACE} istio-injection=enabled --overwrite
-
-# Apply secrets first
-echo -e "${YELLOW}🔑 Applying secrets...${NC}"
-kubectl apply -f kubernetes/secrets.yaml -n ${NAMESPACE}
-
-# Apply the rest of the Kubernetes resources
-echo -e "${YELLOW}🚢 Applying deployment...${NC}"
-kubectl apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
-
-echo -e "${YELLOW}🔄 Applying service...${NC}"
-kubectl apply -f kubernetes/service.yaml -n ${NAMESPACE}
-
-echo -e "${YELLOW}🚪 Applying gateway...${NC}"
-kubectl apply -f kubernetes/gateway.yaml -n ${NAMESPACE}
-
-echo -e "${YELLOW}🌐 Applying virtual service...${NC}"
-kubectl apply -f kubernetes/virtual-service.yaml -n ${NAMESPACE}
-
-# Verify the deployment status
-echo -e "${YELLOW}🔍 Verifying deployment status...${NC}"
-kubectl get pods -n ${NAMESPACE}
-
-echo -e "${GREEN}✅ Deployment completed. Verify the status with 'kubectl get pods -n ${NAMESPACE}'${NC}"
-echo -e "${GREEN}📊 You can monitor the service with Istio tools (Kiali, Jaeger, etc.)${NC}"
-
-# Build Docker image
-echo -e "${YELLOW}📦 Building Docker image...${NC}"
-docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-
-# Check if a registry was specified
+# Verificar si se especificó un registro
 if [ ! -z "$REGISTRY" ]; then
-    # Tag image for the registry
-    echo -e "${YELLOW}🏷️  Tagging image for registry...${NC}"
+    # Etiquetar imagen para el registro
+    echo -e "${YELLOW}🏷️  Etiquetando imagen para registro...${NC}"
     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
     
-    # Push image to registry
-    echo -e "${YELLOW}📤 Pushing image to registry...${NC}"
+    # Enviar imagen al registro
+    echo -e "${YELLOW}📤 Enviando imagen al registro...${NC}"
     docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
 fi
 
-# Check if the namespace exists, if not, create it
-if ! kubectl get namespace ${NAMESPACE} &> /dev/null; then
-    echo -e "${YELLOW}🌐 Creating namespace ${NAMESPACE}...${NC}"
-    kubectl create namespace ${NAMESPACE}
-    
-    # Enable Istio injection
-    echo -e "${YELLOW}🔧 Enabling Istio injection in namespace...${NC}"
-    kubectl label namespace ${NAMESPACE} istio-injection=enabled
+# Verificar la disponibilidad de microk8s kubectl
+if ! command -v microk8s &> /dev/null; then
+    echo -e "${RED}❌ Error: microk8s no está instalado o no está en el PATH.${NC}"
+    echo -e "${YELLOW}ℹ️ Por favor, instala microk8s o asegúrate de que esté en tu PATH.${NC}"
+    exit 1
 fi
 
-# Apply Kubernetes manifests
-echo -e "${YELLOW}📄 Applying Kubernetes manifests...${NC}"
+# Verificar si el namespace existe, si no, crearlo
+if ! ${KUBECTL_CMD} get namespace ${NAMESPACE} &> /dev/null; then
+    echo -e "${YELLOW}🌐 Creando namespace ${NAMESPACE}...${NC}"
+    ${KUBECTL_CMD} create namespace ${NAMESPACE}
+    
+    # Habilitar inyección de Istio
+    echo -e "${YELLOW}🔧 Habilitando inyección de Istio en el namespace...${NC}"
+    ${KUBECTL_CMD} label namespace ${NAMESPACE} istio-injection=enabled
+else
+    # Asegurarse de que la inyección de Istio esté habilitada
+    echo -e "${YELLOW}🏷️ Asegurando que la inyección de Istio esté habilitada...${NC}"
+    ${KUBECTL_CMD} label namespace ${NAMESPACE} istio-injection=enabled --overwrite
+fi
 
-# Apply secrets first
-echo -e "${YELLOW}🔑 Applying secrets...${NC}"
-kubectl apply -f kubernetes/secrets.yaml -n ${NAMESPACE}
+# Aplicar manifiestos de Kubernetes
+echo -e "${YELLOW}📄 Aplicando manifiestos de Kubernetes...${NC}"
 
-# Apply the rest of the resources
-echo -e "${YELLOW}🚢 Applying deployment...${NC}"
-kubectl apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
+# Aplicar primero los secretos
+echo -e "${YELLOW}🔑 Aplicando secretos...${NC}"
+${KUBECTL_CMD} apply -f kubernetes/secrets.yaml -n ${NAMESPACE}
+
+# Aplicar el resto de recursos
+echo -e "${YELLOW}🚢 Aplicando deployment...${NC}"
+${KUBECTL_CMD} apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
 
 echo -e "${YELLOW}🔄 Aplicando service...${NC}"
-kubectl apply -f kubernetes/service.yaml -n ${NAMESPACE}
+${KUBECTL_CMD} apply -f kubernetes/service.yaml -n ${NAMESPACE}
 
 echo -e "${YELLOW}🚪 Aplicando gateway...${NC}"
-kubectl apply -f kubernetes/gateway.yaml -n ${NAMESPACE}
+${KUBECTL_CMD} apply -f kubernetes/gateway.yaml -n ${NAMESPACE}
 
 echo -e "${YELLOW}🌐 Aplicando virtual service...${NC}"
-kubectl apply -f kubernetes/virtual-service.yaml -n ${NAMESPACE}
+${KUBECTL_CMD} apply -f kubernetes/virtual-service.yaml -n ${NAMESPACE}
 
 # Verificar el estado del despliegue
 echo -e "${YELLOW}🔍 Verificando estado del despliegue...${NC}"
-kubectl get pods -n ${NAMESPACE}
+${KUBECTL_CMD} get pods -n ${NAMESPACE}
 
 # Esperar a que todos los pods estén listos
 echo -e "${YELLOW}⏳ Esperando a que los pods estén listos...${NC}"
-kubectl wait --for=condition=ready pod -l app=raven-api -n ${NAMESPACE} --timeout=120s
+${KUBECTL_CMD} wait --for=condition=ready pod -l app=raven-api -n ${NAMESPACE} --timeout=120s
 
 # Inicializar la base de datos con datos de ejemplo
 echo -e "${YELLOW}🗃️ Inicializando la base de datos con datos de ejemplo...${NC}"
-POD_NAME=$(kubectl get pods -n ${NAMESPACE} -l app=raven-api -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -n ${NAMESPACE} ${POD_NAME} -- python -m scripts.seed_db
+POD_NAME=$(${KUBECTL_CMD} get pods -n ${NAMESPACE} -l app=raven-api -o jsonpath="{.items[0].metadata.name}")
+${KUBECTL_CMD} exec -n ${NAMESPACE} ${POD_NAME} -- python -m scripts.seed_db
 
-echo -e "${GREEN}✅ Despliegue completado. Verifica el estado con 'kubectl get pods -n ${NAMESPACE}'${NC}"
+echo -e "${GREEN}✅ Despliegue completado. Verifica el estado con '${KUBECTL_CMD} get pods -n ${NAMESPACE}'${NC}"
 echo -e "${GREEN}📊 Puedes monitorear el servicio con las herramientas de Istio (Kiali, Jaeger, etc.)${NC}"
