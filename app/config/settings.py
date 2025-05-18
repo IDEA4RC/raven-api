@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # General configuration
     PROJECT_NAME: str = "RAVEN API"
     VERSION: str = "0.1.0"
-    API_V1_STR: str = "/api/v1"
+    API_V1_STR: str = "/raven-api/v1"
     ENVIRONMENT: str = "development"
     
     BACKEND_CORS_ORIGINS: List[str] = []

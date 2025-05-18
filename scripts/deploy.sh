@@ -1,5 +1,38 @@
 #!/bin/bash
-# Script to build and deploy to Kubernecho -e "${YELLOW}🚢 Applying deployment...${NC}"
+# Script to build and deploy to Kubernetes with Istio
+
+# Configuration
+NAMESPACE="raven"
+IMAGE_NAME="raven-api"
+IMAGE_TAG="latest"
+REGISTRY=""  # Change to your container registry if needed
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}🚀 Starting deployment of RAVEN API in Kubernetes with Istio${NC}"
+
+# Building the image
+echo -e "${YELLOW}🔨 Building the Docker image...${NC}"
+docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+
+# Create namespace if it doesn't exist
+echo -e "${YELLOW}🌍 Creating namespace if it doesn't exist...${NC}"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+# Label namespace for Istio injection
+echo -e "${YELLOW}🏷️ Enabling Istio injection for namespace...${NC}"
+kubectl label namespace ${NAMESPACE} istio-injection=enabled --overwrite
+
+# Apply secrets first
+echo -e "${YELLOW}🔑 Applying secrets...${NC}"
+kubectl apply -f kubernetes/secrets.yaml -n ${NAMESPACE}
+
+# Apply the rest of the Kubernetes resources
+echo -e "${YELLOW}🚢 Applying deployment...${NC}"
 kubectl apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
 
 echo -e "${YELLOW}🔄 Applying service...${NC}"
@@ -16,19 +49,7 @@ echo -e "${YELLOW}🔍 Verifying deployment status...${NC}"
 kubectl get pods -n ${NAMESPACE}
 
 echo -e "${GREEN}✅ Deployment completed. Verify the status with 'kubectl get pods -n ${NAMESPACE}'${NC}"
-echo -e "${GREEN}📊 You can monitor the service with Istio tools (Kiali, Jaeger, etc.)${NC}" Configuration
-NAMESPACE="raven"
-IMAGE_NAME="raven-api"
-IMAGE_TAG="latest"
-REGISTRY=""  # Change to your container registry if needed
-
-# Colors
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo -e "${GREEN}🚀 Starting deployment of RAVEN API in Kubernetes with Istio${NC}"
+echo -e "${GREEN}📊 You can monitor the service with Istio tools (Kiali, Jaeger, etc.)${NC}"
 
 # Build Docker image
 echo -e "${YELLOW}📦 Building Docker image...${NC}"

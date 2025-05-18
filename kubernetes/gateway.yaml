@@ -11,4 +11,4 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "raven-api.example.com" # Adjust to the real domain
+    - "host01.lst.tfo.upm.es"

@@ -7,7 +7,6 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import schemas
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.services.workspace import workspace_service

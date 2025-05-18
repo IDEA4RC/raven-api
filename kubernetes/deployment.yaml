@@ -45,7 +45,7 @@ spec:
               key: secret-key
         readinessProbe:
           httpGet:
-            path: /api/v1/health/
+            path: /raven-api/v1/health/
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10

@@ -10,7 +10,7 @@ La autenticación de usuarios se realiza mediante Keycloak, un sistema de gesti�
 
 ### Flujo de Autenticación
 
-1. El usuario envía sus credenciales a nuestra API a través del endpoint `/auth/login`
+1. El usuario envía sus credenciales a nuestra API a través del endpoint `/raven-api/v1/auth/login`
 2. Nuestra API reenvía estas credenciales a Keycloak para su validación
 3. Si la validación es exitosa, Keycloak devuelve un token JWT
 4. Nuestra API devuelve este token al usuario
@@ -109,7 +109,7 @@ class DataAccessStatus(int, Enum):
 
 ## Integración
 
-El endpoint `/test-integration/submit-permit-request` muestra cómo se integran estos tres componentes:
+El endpoint `/raven-api/v1/test-integration/submit-permit-request` muestra cómo se integran estos tres componentes:
 1. Actualiza el estado del permiso
 2. Actualiza el estado del workspace
 3. Genera entradas en el historial automáticamente
