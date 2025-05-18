@@ -78,7 +78,7 @@ echo -e "${YELLOW}📋 Paso 5: Obteniendo la IP externa del servicio...${NC}"
 # 6. Verificar que la API sea accesible
 echo -e "${YELLOW}📋 Paso 6: Verificando que la API sea accesible...${NC}"
 echo -e "${YELLOW}ℹ️ Después de configurar DNS o el archivo /etc/hosts, la API debería estar accesible en:${NC}"
-echo -e "${GREEN}https://host01.idea.lst.tfo.upm.es/raven-api/v1/health/${NC}"
+echo -e "${GREEN}https://host02.idea.lst.tfo.upm.es/raven-api/v1/health/${NC}"
 
 # 7. Instrucciones adicionales
 echo -e "${YELLOW}ℹ️ Instrucciones adicionales:${NC}"

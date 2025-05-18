@@ -4,7 +4,7 @@ metadata:
   name: raven-api
 spec:
   hosts:
-  - "host01.idea.lst.tfo.upm.es"
+  - "host02.idea.lst.tfo.upm.es"
   gateways:
   - raven-gateway
   http:

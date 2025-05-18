@@ -31,4 +31,4 @@ echo -e "${YELLOW}📋 Paso 5: Verificando el acceso a la API...${NC}"
 
 echo -e "${GREEN}✅ Proceso completado.${NC}"
 echo -e "${GREEN}ℹ️ La RAVEN API debería estar expuesta de manera segura en:${NC}"
-echo -e "${GREEN}https://host01.idea.lst.tfo.upm.es/raven-api/v1/${NC}"
+echo -e "${GREEN}https://host02.idea.lst.tfo.upm.es/raven-api/v1/${NC}"

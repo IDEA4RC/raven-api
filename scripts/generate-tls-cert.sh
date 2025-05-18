@@ -9,7 +9,7 @@ NC='\033[0m' # Sin Color
 
 KUBECTL_CMD="microk8s kubectl"
 NAMESPACE="istio-system"
-HOST="host01.idea.lst.tfo.upm.es"
+HOST="host02.idea.lst.tfo.upm.es"
 CERT_NAME="raven-api-cert"
 
 echo -e "${YELLOW}🔒 Generando certificado TLS autofirmado para $HOST...${NC}"
