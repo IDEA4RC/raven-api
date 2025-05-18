@@ -51,11 +51,12 @@ class Settings(BaseSettings):
     METRICS_PORT: int = 8000
     
     # Host URL (para configurar endpoints externos)
-    HOST_URL: str = "http://localhost:8000"
+    HOST_URL: str = "https://host01.idea.lst.tfo.upm.es"
 
     model_config = {
         "case_sensitive": True,
-        "env_file": ".env"
+        "env_file": ".env",
+        "extra": "ignore"  # Permite campos extra en el archivo .env
     }
 
 
