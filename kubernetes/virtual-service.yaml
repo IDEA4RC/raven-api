@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
   - "host02.idea.lst.tfo.upm.es"
+  - "138.4.10.238"
   gateways:
   - raven-gateway
   http:
