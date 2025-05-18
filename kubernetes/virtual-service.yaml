@@ -4,7 +4,7 @@ metadata:
   name: raven-api
 spec:
   hosts:
-  - "raven-api.example.com" # Ajustar al dominio real
+  - "host01.lst.tfo.upm.es"
   gateways:
   - raven-gateway
   http:
