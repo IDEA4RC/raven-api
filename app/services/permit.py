@@ -53,18 +53,15 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         action = f"Permit created with status {db_obj.status}"
         if db_obj.status == 2:
             action = "Submitted data access application"
-            phase = "Data Permit"
-            details = "The data permit application has been submitted"
+            description = "The data permit application has been submitted"
         else:
-            phase = "Permit Creation" 
-            details = f"A new permit with status {db_obj.status} has been created"
+            description = f"A new permit with status {db_obj.status} has been created"
             
         workspace_history = WorkspaceHistory(
             date=datetime.utcnow(),
             action=action,
-            phase=phase,
-            details=details,
-            creator_id=user_id,
+            description=description,
+            user_id=user_id,
             workspace_id=obj_in.workspace_id
         )
         db.add(workspace_history)
@@ -107,26 +104,21 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         action = f"Permit status updated to {status}"
         if status == PermitStatus.SUBMITTED:
             action = "Submitted data access application"
-            phase = "Data Permit"
-            details = "The data permit application has been submitted"
+            description = "The data permit application has been submitted"
         elif status == PermitStatus.APPROVED:
             action = "Data access application approved"
-            phase = "Data Permit"
-            details = "The data permit application has been approved"
+            description = "The data permit application has been approved"
         elif status == PermitStatus.REJECTED:
             action = "Data access application rejected"
-            phase = "Data Permit"
-            details = "The data permit application has been rejected"
+            description = "The data permit application has been rejected"
         else:
-            phase = "Data Permit Status Change"
-            details = f"The permit status has been changed to {status}"
+            description = f"The permit status has been changed to {status}"
 
         workspace_history = WorkspaceHistory(
             date=datetime.utcnow(),
             action=action,
-            phase=phase,
-            details=details,
-            creator_id=user_id,
+            description=description,
+            user_id=user_id,
             workspace_id=permit.workspace_id
         )
         db.add(workspace_history)

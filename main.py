@@ -30,6 +30,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# MODO PRUEBAS: Autenticación desactivada temporalmente
+# Para volver a activar la autenticación, restaura los comentarios en:
+# - app/api/deps.py
+# - app/api/endpoints/auth.py
+
 # Configurar telemetría para OpenTelemetry
 if settings.ENABLE_TELEMETRY:
     setup_telemetry(app)

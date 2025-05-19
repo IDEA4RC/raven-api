@@ -34,7 +34,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         # Crear workspace
         obj_in_data = obj_in.model_dump()
         db_obj = Workspace(**obj_in_data)
-        db_obj.last_modification_date = datetime.utcnow()
+        db_obj.creator_id = user_id
         db.add(db_obj)
         db.flush()  # Para obtener el ID sin hacer commit
 
@@ -42,10 +42,9 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         workspace_history = WorkspaceHistory(
             date=datetime.utcnow(),
             action="Created workspace",
-            phase="Workspace Creation",
-            details="Workspace created successfully",
-            creator_id=user_id,
-            workspace_id=db_obj.id
+            description="Workspace created successfully",
+            workspace_id=db_obj.id,
+            user_id=user_id
         )
         db.add(workspace_history)
         

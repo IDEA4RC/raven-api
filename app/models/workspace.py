@@ -5,6 +5,7 @@ Workspace model for the database
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from app.models.base import Base
 
@@ -16,7 +17,7 @@ class Workspace(Base):
     name = Column(String, index=True, nullable=False)
     description = Column(Text)
     version = Column(String)
-    creation_date = Column(DateTime(timezone=True), server_default=func.utcnow())
+    creation_date = Column(DateTime(timezone=True), default=datetime.utcnow)
     creator_id = Column(Integer, ForeignKey("users.id"))
     team_id = Column(Integer, ForeignKey("teams.id"))
     last_edit = Column(DateTime(timezone=True))
@@ -33,3 +34,4 @@ class Workspace(Base):
     metadata_searches = relationship("MetadataSearch", back_populates="workspace")
     analyses = relationship("Analysis", back_populates="workspace")
     cohorts = relationship("Cohort", back_populates="workspace")
+    permits = relationship("Permit", back_populates="workspace")

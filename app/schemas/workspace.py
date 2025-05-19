@@ -9,8 +9,10 @@ from pydantic import BaseModel
 
 class WorkspaceBase(BaseModel):
     """Schema base para espacios de trabajo."""
+    name: str
+    description: Optional[str] = None
     data_access: int  # 2 = Submitted según el diagrama
-    last_modification_date: datetime = None
+    last_edit: Optional[datetime] = None
 
 
 class WorkspaceCreate(WorkspaceBase):
@@ -20,8 +22,10 @@ class WorkspaceCreate(WorkspaceBase):
 
 class WorkspaceUpdate(BaseModel):
     """Schema para actualizar un espacio de trabajo."""
+    name: Optional[str] = None
+    description: Optional[str] = None
     data_access: Optional[int] = None
-    last_modification_date: Optional[datetime] = None
+    last_edit: Optional[datetime] = None
 
 
 class Workspace(WorkspaceBase):

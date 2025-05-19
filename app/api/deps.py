@@ -17,8 +17,20 @@ from app.db.session import SessionLocal
 from app.utils.security import ALGORITHM
 from app.utils.keycloak import keycloak_handler
 
+# COMENTADO PARA PRUEBAS - Inicio
+"""
 # Keycloack has its own token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
+"""
+# COMENTADO PARA PRUEBAS - Fin
+
+# En modo pruebas, creamos un OAuth2PasswordBearer que no requiere token
+# Se puede pasar cualquier valor como token o incluso dejarlo vacío
+class DummyOAuth2PasswordBearer:
+    async def __call__(self, request: Request) -> str:
+        return "dummy_token"
+
+oauth2_scheme = DummyOAuth2PasswordBearer()
 
 
 def get_db() -> Generator:
@@ -36,7 +48,10 @@ def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> models.User:
     """
-    Get current user from token using Keycloak.
+    MODO PRUEBAS: Devuelve un usuario admin sin verificar autenticación.
+    Original: Get current user from token using Keycloak.
+    """
+    # COMENTADO PARA PRUEBAS - Inicio
     """
     try:
         # Validamos el token con Keycloak
@@ -69,9 +84,23 @@ def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="Inactive user"
-            )
-            
-        return user
+    """
+    # COMENTADO PARA PRUEBAS - Fin
+    
+    # En modo pruebas, buscamos el primer usuario admin en la base de datos
+    user = db.query(models.User).filter(models.User.is_active == True).first()
+    
+    # Si no hay usuarios, podríamos devolver un error o crear uno
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="No users found in system. Please seed the database."
+        )
+    
+    return user
+    
+    # COMENTADO PARA PRUEBAS - Inicio
+    """
     except HTTPException:
         raise
     except Exception as e:
@@ -79,3 +108,5 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Could not validate credentials: {str(e)}",
         )
+    """
+    # COMENTADO PARA PRUEBAS - Fin
