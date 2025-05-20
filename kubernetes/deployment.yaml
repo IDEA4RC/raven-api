@@ -22,7 +22,7 @@ spec:
       containers:
       - name: raven-api
         image: localhost:32000/raven-api:latest # Using local registry for development
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         resources:
