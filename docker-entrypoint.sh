@@ -1,10 +1,11 @@
 #!/bin/sh
-# Ejecutar migraciones de base de datos
-alembic upgrade head
+# Iniciar proceso de migración con validación
+echo "Verificando estado de migraciones..."
+python /app/scripts/fix_migrations.py
 
-# Inicializar la base de datos SQLite con la estructura correcta
-# Este script se asegura de que las tablas tengan todas las columnas necesarias
-python -m app.db.init_sqlite
+# Aplicar migraciones de Alembic
+echo "Aplicando migraciones de base de datos..."
+alembic upgrade head
 
 # Iniciar la aplicación
 exec "$@"

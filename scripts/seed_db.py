@@ -23,29 +23,10 @@ def seed_database():
     
     try:
         # Check if database already has data
-        try:
-            existing_users = db.query(User).first()
-            if existing_users:
-                print("Database already contains data. Skipping seed process.")
-                return
-        except Exception as e:
-            if "no such column: users.keycloak_id" in str(e):
-                print("Error consultando usuarios: {e}. Ejecutando inicialización de la base de datos...")
-                # Importar y ejecutar el script de inicialización de la base de datos
-                from app.db.init_sqlite import init_database
-                init_database()
-                # Volver a intentar obtener usuarios
-                try:
-                    existing_users = db.query(User).first()
-                    if existing_users:
-                        print("Database already contains data. Skipping seed process.")
-                        return
-                except Exception as e2:
-                    print(f"Error al consultar usuarios después de la inicialización: {e2}")
-                    print("Continuando con el proceso de inicialización de datos...")
-            else:
-                print(f"Error inesperado: {e}")
-                raise
+        existing_users = db.query(User).first()
+        if existing_users:
+            print("Database already contains data. Skipping seed process.")
+            return
             
         # Create organizations
         print("Creating organizations...")
@@ -263,21 +244,6 @@ def seed_database():
     except Exception as e:
         db.rollback()
         print(f"Error seeding database: {e}")
-        # Intentar ejecutar los scripts de actualización de la estructura de tablas
-        try:
-            print("Intentando actualizar la estructura de las tablas...")
-            import subprocess
-            
-            # Ejecutar el script de actualización de la tabla users
-            subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "update_users_table.py")], check=True)
-            
-            # Ejecutar el script de actualización de la tabla permits
-            subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "update_permits_table.py")], check=True)
-            
-            print("Estructura de tablas actualizada. Intentando sembrar la base de datos de nuevo...")
-            seed_database()
-        except Exception as update_error:
-            print(f"Error al actualizar la estructura de tablas: {update_error}")
     finally:
         db.close()
 
