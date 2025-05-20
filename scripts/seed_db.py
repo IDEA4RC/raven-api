@@ -244,6 +244,21 @@ def seed_database():
     except Exception as e:
         db.rollback()
         print(f"Error seeding database: {e}")
+        # Intentar ejecutar los scripts de actualización de la estructura de tablas
+        try:
+            print("Intentando actualizar la estructura de las tablas...")
+            import subprocess
+            
+            # Ejecutar el script de actualización de la tabla users
+            subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "update_users_table.py")], check=True)
+            
+            # Ejecutar el script de actualización de la tabla permits
+            subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "update_permits_table.py")], check=True)
+            
+            print("Estructura de tablas actualizada. Intentando sembrar la base de datos de nuevo...")
+            seed_database()
+        except Exception as update_error:
+            print(f"Error al actualizar la estructura de tablas: {update_error}")
     finally:
         db.close()
 
