@@ -23,10 +23,29 @@ def seed_database():
     
     try:
         # Check if database already has data
-        existing_users = db.query(User).first()
-        if existing_users:
-            print("Database already contains data. Skipping seed process.")
-            return
+        try:
+            existing_users = db.query(User).first()
+            if existing_users:
+                print("Database already contains data. Skipping seed process.")
+                return
+        except Exception as e:
+            if "no such column: users.keycloak_id" in str(e):
+                print("Error consultando usuarios: {e}. Ejecutando inicialización de la base de datos...")
+                # Importar y ejecutar el script de inicialización de la base de datos
+                from app.db.init_sqlite import init_database
+                init_database()
+                # Volver a intentar obtener usuarios
+                try:
+                    existing_users = db.query(User).first()
+                    if existing_users:
+                        print("Database already contains data. Skipping seed process.")
+                        return
+                except Exception as e2:
+                    print(f"Error al consultar usuarios después de la inicialización: {e2}")
+                    print("Continuando con el proceso de inicialización de datos...")
+            else:
+                print(f"Error inesperado: {e}")
+                raise
             
         # Create organizations
         print("Creating organizations...")

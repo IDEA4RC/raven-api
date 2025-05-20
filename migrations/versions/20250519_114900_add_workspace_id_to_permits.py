@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = '20250519_114900'
-down_revision = '20250514_132512'  # Ajusta esto a la última revisión existente
+down_revision = '193a5e67d12a'  # Revisión de add_keycloak_id
 branch_labels = None
 depends_on = None
 

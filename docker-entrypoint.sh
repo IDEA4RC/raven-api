@@ -2,9 +2,9 @@
 # Ejecutar migraciones de base de datos
 alembic upgrade head
 
-# Ejecutar scripts de actualización de tablas para garantizar estructura correcta
-python /app/scripts/update_users_table.py
-python /app/scripts/update_permits_table.py
+# Inicializar la base de datos SQLite con la estructura correcta
+# Este script se asegura de que las tablas tengan todas las columnas necesarias
+python -m app.db.init_sqlite
 
 # Iniciar la aplicación
 exec "$@"
