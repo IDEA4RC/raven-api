@@ -194,45 +194,40 @@ def seed_database():
         history1 = WorkspaceHistory(
             date=datetime.utcnow(),
             action="Workspace created",
-            phase="Creation",
-            details="Initial workspace setup",
-            creator_id=user1.id,
+            description="Initial workspace setup - Creation phase",
+            user_id=user1.id,
             workspace_id=workspace1.id
         )
         
         history2 = WorkspaceHistory(
             date=datetime.utcnow(),
             action="Data access application submitted",
-            phase="Data Permit",
-            details="The data permit application has been submitted",
-            creator_id=user1.id,
+            description="The data permit application has been submitted - Data Permit phase",
+            user_id=user1.id,
             workspace_id=workspace1.id
         )
         
         history3 = WorkspaceHistory(
             date=datetime.utcnow(),
             action="Data access application approved",
-            phase="Data Permit",
-            details="The data permit application has been approved",
-            creator_id=user1.id,
+            description="The data permit application has been approved - Data Permit phase",
+            user_id=user1.id,
             workspace_id=workspace1.id
         )
         
         history4 = WorkspaceHistory(
             date=datetime.utcnow(),
             action="Workspace created",
-            phase="Creation",
-            details="Initial workspace setup",
-            creator_id=user3.id,
+            description="Initial workspace setup - Creation phase",
+            user_id=user3.id,
             workspace_id=workspace2.id
         )
         
         history5 = WorkspaceHistory(
             date=datetime.utcnow(),
             action="Data access application submitted",
-            phase="Data Permit",
-            details="The data permit application has been submitted",
-            creator_id=user3.id,
+            description="The data permit application has been submitted",
+            user_id=user3.id,
             workspace_id=workspace2.id
         )
         
