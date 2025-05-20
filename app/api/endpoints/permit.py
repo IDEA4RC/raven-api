@@ -1,5 +1,5 @@
 """
-Endpoints para operaciones con permisos
+Endpoints for permit operations
 """
 
 from typing import Any, List
@@ -23,7 +23,7 @@ def create_permit(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Crea un nuevo permiso para un workspace.
+    Creates a new permit for a workspace.
     """
     permit = permit_service.create(db=db, obj_in=permit_in)
     return permit
@@ -37,7 +37,7 @@ def get_permit(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Obtiene un permiso por ID.
+    Obtains a permit by ID.
     """
     permit = permit_service.get(db=db, id=permit_id)
     if not permit:
@@ -56,7 +56,7 @@ def get_permits_by_workspace(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Obtiene todos los permisos de un workspace.
+    Obtains all permits for a workspace.
     """
     permits = db.query(permit_service.model)\
         .filter(permit_service.model.workspace_id == workspace_id)\
@@ -73,7 +73,7 @@ def update_permit_status(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Actualiza el estado de un permiso.
+    Updates the status of a permit.
     """
     try:
         permit = permit_service.update_permit_status(

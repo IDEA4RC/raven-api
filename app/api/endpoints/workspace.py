@@ -1,5 +1,5 @@
 """
-Endpoints para operaciones con workspaces
+Endpoints for operations with workspaces
 """
 
 from typing import Any, List
@@ -23,7 +23,7 @@ def create_workspace(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Crea un nuevo workspace.
+    Creates a new workspace.
     """
     workspace = workspace_service.create_with_history(
         db=db, obj_in=workspace_in, user_id=current_user.id
@@ -39,7 +39,7 @@ def get_workspace(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Obtiene un workspace por ID.
+    Obtains a workspace by ID.
     """
     workspace = workspace_service.get(db=db, id=workspace_id)
     if not workspace:
@@ -59,7 +59,7 @@ def get_workspaces(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Obtiene todos los workspaces.
+    Obteains the list of workspaces.
     """
     workspaces = workspace_service.get_multi(db=db, skip=skip, limit=limit)
     return workspaces
@@ -74,7 +74,7 @@ def update_data_access(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Actualiza el estado de acceso a datos de un workspace.
+    Updates the data access status of a workspace.
     """
     workspace = workspace_service.update_data_access(
         db=db, workspace_id=workspace_id, data_access=data_access, user_id=current_user.id

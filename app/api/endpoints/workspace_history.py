@@ -1,5 +1,5 @@
 """
-Endpoints para operaciones con el historial de workspaces
+Endpoints for operations with the workspace history
 """
 
 from typing import Any, List
@@ -23,7 +23,7 @@ def get_workspace_history(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Obtiene el historial completo de un workspace.
+    Obtains the complete history of a workspace.
     """
     history = db.query(WorkspaceHistory)\
         .filter(WorkspaceHistory.workspace_id == workspace_id)\

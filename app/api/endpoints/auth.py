@@ -1,5 +1,5 @@
 """
-Endpoints para autenticación
+Endpoints for authentication.
 """
 
 from typing import Any, Dict
@@ -16,8 +16,8 @@ router = APIRouter()
 @router.post("/login", response_model=Dict[str, Any])
 def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
     """
-    MODO PRUEBAS: Devuelve un token ficticio sin verificar credenciales.
-    Original: Obtiene un token de acceso usando las credenciales de usuario.
+    TESTING MODE: Returns a dummy token without verifying credentials.
+    Original: Obtains an access token using user credentials.
     """
     # COMENTADO PARA PRUEBAS - Inicio
     """
@@ -47,8 +47,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
 @router.post("/refresh-token", response_model=Dict[str, Any])
 def refresh_token(refresh_token: str) -> Any:
     """
-    MODO PRUEBAS: Devuelve un token ficticio sin verificar el refresh_token.
-    Original: Actualiza un token de acceso usando el token de actualización.
+    TESTING MODE: Returns a dummy token without verifying the refresh_token.
+    Original: Updates an access token using the refresh token.
     """
     # COMENTADO PARA PRUEBAS - Inicio
     """
@@ -78,8 +78,8 @@ def refresh_token(refresh_token: str) -> Any:
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(refresh_token: str) -> None:
     """
-    MODO PRUEBAS: No hace nada, simplemente devuelve éxito.
-    Original: Cierra la sesión del usuario invalidando el token.
+    TESTING MODE: Does nothing, simply returns success.
+    Original: Logs out the user by invalidating the token.
     """
     # COMENTADO PARA PRUEBAS - Inicio
     """

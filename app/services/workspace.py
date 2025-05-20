@@ -18,7 +18,7 @@ from app.utils.constants import PermitStatus, DataAccessStatus
 
 class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate]):
     """
-    Servicio para operaciones con workspaces
+    Service for handling workspace operations
     """
 
     def create_with_history(
@@ -29,7 +29,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         user_id: int
     ) -> Workspace:
         """
-        Crea un nuevo workspace y registra la acción en el historial
+        Create a new workspace and log the event in the workspace history
         """
         # Crear workspace
         obj_in_data = obj_in.model_dump()
@@ -69,9 +69,9 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         user_id: int
     ) -> Workspace:
         """
-        Actualiza el estado de acceso a datos de un workspace y registra el cambio
+        Update the data access status of a workspace and log the change
         """
-        # Obtener el workspace
+        # Get the workspace
         workspace = self.get(db, workspace_id)
         if not workspace:
             raise ValueError(f"Workspace with id {workspace_id} not found")

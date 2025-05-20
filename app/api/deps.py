@@ -17,15 +17,15 @@ from app.db.session import SessionLocal
 from app.utils.security import ALGORITHM
 from app.utils.keycloak import keycloak_handler
 
-# COMENTADO PARA PRUEBAS - Inicio
+# COMENTED FOR TESTING - Start
 """
 # Keycloack has its own token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
 """
-# COMENTADO PARA PRUEBAS - Fin
+# COMENTED FOR TESTING - End
 
-# En modo pruebas, creamos un OAuth2PasswordBearer que no requiere token
-# Se puede pasar cualquier valor como token o incluso dejarlo vacío
+# In testing mode, we create an OAuth2PasswordBearer that does not require a token
+# Any value can be passed as a token or it can be left empty
 class DummyOAuth2PasswordBearer:
     async def __call__(self, request: Request) -> str:
         return "dummy_token"
@@ -48,10 +48,10 @@ def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> models.User:
     """
-    MODO PRUEBAS: Devuelve un usuario admin sin verificar autenticación.
+    TESTING MODE: Returns an admin user without verifying authentication.
     Original: Get current user from token using Keycloak.
     """
-    # COMENTADO PARA PRUEBAS - Inicio
+    # COMENTED FOR TESTING - Start
     """
     try:
         # Validamos el token con Keycloak
@@ -85,12 +85,12 @@ def get_current_user(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="Inactive user"
     """
-    # COMENTADO PARA PRUEBAS - Fin
-    
-    # En modo pruebas, buscamos el primer usuario admin en la base de datos
+    # COMENTED FOR TESTING - End
+
+    # In testing mode, we look for the first active admin user in the database
     user = db.query(models.User).filter(models.User.is_active == True).first()
-    
-    # Si no hay usuarios, podríamos devolver un error o crear uno
+
+    # If no users are found, we could return an error or create one
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
@@ -98,8 +98,8 @@ def get_current_user(
         )
     
     return user
-    
-    # COMENTADO PARA PRUEBAS - Inicio
+
+    # COMENTED FOR TESTING - Start
     """
     except HTTPException:
         raise
@@ -109,4 +109,4 @@ def get_current_user(
             detail=f"Could not validate credentials: {str(e)}",
         )
     """
-    # COMENTADO PARA PRUEBAS - Fin
+    # COMENTED FOR TESTING - End

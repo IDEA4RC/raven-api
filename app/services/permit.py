@@ -1,5 +1,5 @@
 """
-Servicio para operaciones con permisos
+Service for handling permit operations
 """
 
 from datetime import datetime
@@ -18,9 +18,9 @@ from app.utils.constants import PermitStatus, DataAccessStatus
 
 class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
     """
-    Servicio para operaciones con permisos
+    Service for handling permit operations
     """
-    
+
     def create_with_history(
         self,
         db: Session,
@@ -29,7 +29,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         user_id: int
     ) -> Permit:
         """
-        Crea un nuevo permiso y registra el evento en el historial del workspace
+        Create a new permit and log the event in the workspace history
         """
         # Verificar que el workspace existe
         workspace = db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
@@ -79,21 +79,21 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         user_id: int
     ) -> Permit:
         """
-        Actualiza el estado de un permiso y registra el cambio en workspace y workspace history
+        Update the status of a permit and log the change in workspace and workspace history
         """
-        # Obtener el permiso
+        # Get the permit
         permit = self.get(db, permit_id)
         if not permit:
             raise ValueError(f"Permit with id {permit_id} not found")
 
-        # Actualizar el permiso
+        # Update the permit status
         permit_update = PermitUpdate(
             status=status,
             update_date=datetime.utcnow()
         )
         updated_permit = self.update(db, db_obj=permit, obj_in=permit_update)
 
-        # Actualizar el workspace
+        # Update the workspace
         workspace = db.query(Workspace).filter(Workspace.id == permit.workspace_id).first()
         if workspace:
             workspace.data_access = status

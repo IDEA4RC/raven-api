@@ -1,5 +1,5 @@
 """
-Servicio de autenticación con Keycloak
+Keycloak Authentication Service
 """
 
 from typing import Dict, Any, Optional
@@ -12,12 +12,12 @@ from app.utils.keycloak import keycloak_handler
 
 class AuthService:
     """
-    Servicio para manejar la autenticación con Keycloak
+    Keycloak Authentication Service
     """
     
     def authenticate(self, username: str, password: str) -> Dict[str, Any]:
         """
-        Autenticar un usuario contra Keycloak y obtener tokens
+        Authenticate a user with Keycloak using username and password
         """
         url = f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token"
         
@@ -57,7 +57,7 @@ class AuthService:
     
     def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
         """
-        Refrescar un token usando el refresh_token
+        Refresh a token using the refresh_token
         """
         url = f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token"
         
@@ -87,7 +87,7 @@ class AuthService:
     
     def logout(self, refresh_token: str) -> None:
         """
-        Cerrar la sesión del usuario invalidando el token
+        Logout a user by invalidating the refresh token
         """
         url = f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/logout"
         

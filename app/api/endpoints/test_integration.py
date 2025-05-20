@@ -1,5 +1,5 @@
 """
-Endpoints para prueba de integración entre Permit, Workspace y WorkspaceHistory
+Endpoints for testing integration between Permit, Workspace and WorkspaceHistory
 """
 
 from typing import Any, Dict
@@ -24,11 +24,11 @@ def submit_permit_request(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Envía una solicitud de permiso para un workspace.
-    Actualiza el estado del permiso, el workspace y crea un registro en el historial.
+    Sends a permit request for a workspace.
+    Updates the permit status, the workspace, and creates a record in the history.
     """
     try:
-        # 1. Obtener el permiso actual del workspace
+        # 1. Get the current permit for the workspace
         permits = db.query(permit_service.model)\
             .filter(permit_service.model.workspace_id == workspace_id)\
             .all()
