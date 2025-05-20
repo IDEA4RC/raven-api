@@ -17,3 +17,11 @@ spec:
         host: raven-api
         port:
           number: 80
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: raven-api
+        port:
+          number: 80
