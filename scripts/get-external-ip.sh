@@ -8,7 +8,7 @@ RED='\033[0;31m'
 NC='\033[0m' # Sin Color
 
 KUBECTL_CMD="microk8s kubectl"
-HOSTNAME="host02.idea.lst.tfo.upm.es"
+HOSTNAME="orchestrator.idea.lst.tfo.upm.es"
 
 echo -e "${YELLOW}🔍 Obteniendo la IP externa del Istio Ingress Gateway...${NC}"
 

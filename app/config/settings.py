@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     METRICS_PORT: int = 8000
     
     # Host URL (para configurar endpoints externos)
-    HOST_URL: str = "https://host02.idea.lst.tfo.upm.es"
+    HOST_URL: str = "https://orchestrator.idea.lst.tfo.upm.es"
 
     model_config = {
         "case_sensitive": True,

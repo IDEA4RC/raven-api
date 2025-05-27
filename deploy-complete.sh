@@ -40,7 +40,7 @@ $KUBECTL_CMD get gateways -n $NAMESPACE
 
 # 5. Mostrar la URL de acceso
 echo -e "${GREEN}✅ Despliegue completado.${NC}"
-echo -e "${GREEN}📊 La API debería estar accesible en: https://host02.idea.lst.tfo.upm.es/raven-api/v1/health/${NC}"
+echo -e "${GREEN}📊 La API debería estar accesible en: https://orchestrator.idea.lst.tfo.upm.es/raven-api/v1/health/${NC}"
 
 # 6. Instrucciones para solución de problemas
 echo -e "${YELLOW}ℹ️ Si encuentras problemas con el despliegue:${NC}"

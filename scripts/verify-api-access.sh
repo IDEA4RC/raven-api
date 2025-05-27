@@ -7,7 +7,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # Sin Color
 
-HOST="host02.idea.lst.tfo.upm.es"
+HOST="orchestrator.idea.lst.tfo.upm.es"
 API_PATH="/raven-api/v1/health/"
 HTTP_URL="http://$HOST$API_PATH"
 HTTPS_URL="https://$HOST$API_PATH"

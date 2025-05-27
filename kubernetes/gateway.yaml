@@ -11,7 +11,7 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "host02.idea.lst.tfo.upm.es"
+    - "orchestrator.idea.lst.tfo.upm.es"
     - "138.4.10.238"
     # Deshabilitamos temporalmente la redirección a HTTPS
     # tls:

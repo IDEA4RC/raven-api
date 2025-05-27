@@ -7,7 +7,7 @@ IMAGE_NAME="raven-api"
 IMAGE_TAG="latest"
 REGISTRY="localhost:32000"  # Registro local de MicroK8s
 KUBECTL_CMD="microk8s kubectl"  # Usar microk8s kubectl directamente
-HOST="host02.idea.lst.tfo.upm.es"
+HOST="orchestrator.idea.lst.tfo.upm.es"
 
 # Colores
 GREEN='\033[0;32m'
