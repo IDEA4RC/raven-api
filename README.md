@@ -6,15 +6,28 @@ API for the RAVEN platform developed with FastAPI.
 
 This project implements a RESTful API for the RAVEN platform using FastAPI, SQLAlchemy, and Pydantic. The API is structured following best practices to facilitate its maintenance and scalability.
 
+## Recent Updates
+
+- **PostgreSQL Support**: The API now uses PostgreSQL instead of SQLite for better performance and scalability
+- **Enhanced Workspace Management**: Workspaces now support multiple teams (team_ids array)
+- **Advanced Filtering**: Filter workspaces by user_id (creator or team member)
+- **Complete CRUD Operations**: Full permit operations including create, read, update, delete
+- **User Information Endpoint**: Get current user information for login operations
+
 ## Requirements
 
 - Python 3.11+
+- PostgreSQL 12+
 - pip (package manager for Python)
 - Docker (for container building)
 - MicroK8s or Kubernetes with Istio (for deployment)
 - OpenSSL (for TLS certificate generation)
 
-## Installation with pip
+## Installation and Setup
+
+### Option 1: Automatic Migration from SQLite to PostgreSQL
+
+If you have an existing SQLite database and want to migrate to PostgreSQL:
 
 1. Clone the repository:
    ```bash
@@ -29,16 +42,48 @@ This project implements a RESTful API for the RAVEN platform using FastAPI, SQLA
    pip install -r requirements.txt
    ```
 
-3. Configure environment variables:
+3. Run the complete migration script:
    ```bash
-   cp .env.example .env
-   # Edit .env with appropriate values
+   ./scripts/migrate_to_postgresql.sh
    ```
 
-4. Initialize the database:
+### Option 2: Fresh PostgreSQL Installation
+
+For a new installation with PostgreSQL:
+
+1. Setup PostgreSQL:
    ```bash
-   python -m app.db.init_db
+   ./scripts/setup-postgresql.sh
    ```
+
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your PostgreSQL configuration
+   ```
+
+3. Run database migrations:
+   ```bash
+   export DATABASE_URI="postgresql://raven_user:raven_password@localhost:5432/raven_db"
+   alembic upgrade head
+   ```
+
+4. Seed the database (optional):
+   ```bash
+   python scripts/seed_db.py
+   ```
+
+## API Endpoints
+
+### New/Updated Endpoints
+
+- **GET /raven-api/v1/auth/me** - Get current user information
+- **GET /raven-api/v1/workspaces?user_id=<id>** - Filter workspaces by user (creator or team member)
+- **DELETE /raven-api/v1/workspaces/{id}** - Delete a workspace
+- **GET /raven-api/v1/permits** - List all permits
+- **PUT /raven-api/v1/permits/{id}** - Update a permit
+- **DELETE /raven-api/v1/permits/{id}** - Delete a permit
+- **GET /raven-api/v1/permits/team/{team_id}** - Get permits by team
 
 ## Execution
 

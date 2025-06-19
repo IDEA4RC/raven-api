@@ -6,9 +6,12 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
 from app import schemas
 from app.services.auth import auth_service
+from app.api.deps import get_current_user, get_db
+from app.models.user import User
 
 router = APIRouter()
 
@@ -73,6 +76,16 @@ def refresh_token(refresh_token: str) -> Any:
         "expires_in": 3600,
         "scope": "openid profile email"
     }
+
+
+@router.get("/me", response_model=schemas.User)
+def get_current_user_info(
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Get current user information.
+    """
+    return current_user
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

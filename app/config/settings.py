@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         raise ValueError(v)
     
     # Database
-    DATABASE_URI: str = "sqlite:///./raven.db"
+    DATABASE_URI: str = "postgresql://raven_user:raven_password@localhost:5432/raven_db"
     
     # JWT
     SECRET_KEY: str = "YOUR_SECRET_KEY_HERE"

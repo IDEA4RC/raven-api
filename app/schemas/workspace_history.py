@@ -29,5 +29,5 @@ class WorkspaceHistory(WorkspaceHistoryBase):
     
     class Config:
         """Configuración para el schema."""
-        orm_mode = True
+        from_attributes = True
         from_attributes = True
