@@ -2,7 +2,7 @@
 # Script maestro para RAVEN API: despliegue, gestión y exposición
 
 # Configuración
-NAMESPACE="raven"
+NAMESPACE="raven-api"
 IMAGE_NAME="raven-api"
 IMAGE_TAG="latest"
 REGISTRY="localhost:32000"  # Registro local de MicroK8s
