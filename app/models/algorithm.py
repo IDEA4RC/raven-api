@@ -15,7 +15,7 @@ class Algorithm(Base):
     id = Column(Integer, primary_key=True, index=True)
     method_name = Column(String, index=True)
     description = Column(Text)
-    creation_date = Column(DateTime(timezone=True), server_default=func.utcnow())
+    creation_date = Column(DateTime(timezone=True), server_default=func.now())
     version_date = Column(DateTime(timezone=True))
     input = Column(String)
     output = Column(String)

@@ -15,7 +15,7 @@ class Cohort(Base):
     id = Column(Integer, primary_key=True, index=True)
     cohort_name = Column(String, index=True)
     cohort_description = Column(Text)
-    creation_date = Column(DateTime(timezone=True), server_default=func.utcnow())
+    creation_date = Column(DateTime(timezone=True), server_default=func.now())
     version_date = Column(DateTime(timezone=True))
     status = Column(Integer)  # Status of the cohort
     user_id = Column(Integer, ForeignKey("users.id"))

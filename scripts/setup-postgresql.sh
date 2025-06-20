@@ -1,49 +1,87 @@
 #!/bin/bash
 
-# Script para configurar PostgreSQL para el proyecto RAVEN API
+# Script para configurar PostgreSQL con Docker para el proyecto RAVEN API
 
-echo "Configurando PostgreSQL para RAVEN API..."
+echo "Configurando PostgreSQL con Docker para RAVEN API..."
 
-# Verificar si PostgreSQL está instalado
-if ! command -v psql &> /dev/null; then
-    echo "PostgreSQL no está instalado. Instalando..."
-    sudo apt update
-    sudo apt install -y postgresql postgresql-contrib
+# Verificar si Docker está instalado
+if ! command -v docker &> /dev/null; then
+    echo "Error: Docker no está instalado. Por favor instala Docker primero."
+    echo "Visita: https://docs.docker.com/get-docker/"
+    exit 1
 fi
 
-# Verificar si PostgreSQL está ejecutándose
-if ! sudo systemctl is-active --quiet postgresql; then
-    echo "Iniciando PostgreSQL..."
-    sudo systemctl start postgresql
-    sudo systemctl enable postgresql
+# Verificar si Docker está ejecutándose
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker no está ejecutándose. Por favor inicia Docker."
+    exit 1
 fi
 
-echo "Configurando base de datos y usuario..."
+# Definir variables
+CONTAINER_NAME="raven-postgres"
+POSTGRES_DB="raven_db"
+POSTGRES_USER="raven_user"
+POSTGRES_PASSWORD="raven_password"
+POSTGRES_PORT="5432"
 
-# Crear usuario y base de datos
-sudo -u postgres psql << EOF
--- Crear usuario
-CREATE USER raven_user WITH PASSWORD 'raven_password';
+# Verificar si el contenedor ya existe
+if docker ps -a --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "El contenedor ${CONTAINER_NAME} ya existe."
+    
+    # Verificar si está ejecutándose
+    if docker ps --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        echo "El contenedor ya está ejecutándose."
+    else
+        echo "Iniciando el contenedor existente..."
+        docker start ${CONTAINER_NAME}
+    fi
+else
+    echo "Creando y ejecutando contenedor PostgreSQL..."
+    docker run -d \
+        --name ${CONTAINER_NAME} \
+        -e POSTGRES_DB=${POSTGRES_DB} \
+        -e POSTGRES_USER=${POSTGRES_USER} \
+        -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+        -p ${POSTGRES_PORT}:5432 \
+        -v raven-postgres-data:/var/lib/postgresql/data \
+        postgres:15-alpine
+fi
 
--- Crear base de datos
-CREATE DATABASE raven_db OWNER raven_user;
+# Esperar a que PostgreSQL esté listo
+echo "Esperando a que PostgreSQL esté listo..."
+for i in {1..30}; do
+    if docker exec ${CONTAINER_NAME} pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} >/dev/null 2>&1; then
+        echo "PostgreSQL está listo!"
+        break
+    fi
+    echo "Esperando... ($i/30)"
+    sleep 2
+done
 
--- Otorgar privilegios
-GRANT ALL PRIVILEGES ON DATABASE raven_db TO raven_user;
-
--- Otorgar privilegios en el esquema public
-\c raven_db
-GRANT ALL ON SCHEMA public TO raven_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO raven_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO raven_user;
-
-\q
-EOF
-
-echo "PostgreSQL configurado correctamente."
-echo "Base de datos: raven_db"
-echo "Usuario: raven_user"
-echo "Contraseña: raven_password"
-echo ""
-echo "Ahora puedes ejecutar las migraciones con:"
-echo "alembic upgrade head"
+# Verificar la conexión final
+if docker exec ${CONTAINER_NAME} pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} >/dev/null 2>&1; then
+    echo ""
+    echo "✅ PostgreSQL configurado correctamente con Docker!"
+    echo "📋 Detalles de la conexión:"
+    echo "   - Host: localhost"
+    echo "   - Puerto: ${POSTGRES_PORT}"
+    echo "   - Base de datos: ${POSTGRES_DB}"
+    echo "   - Usuario: ${POSTGRES_USER}"
+    echo "   - Contraseña: ${POSTGRES_PASSWORD}"
+    echo "   - Contenedor: ${CONTAINER_NAME}"
+    echo ""
+    echo "🔗 URL de conexión:"
+    echo "   DATABASE_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
+    echo ""
+    echo "🚀 Ahora puedes ejecutar las migraciones con:"
+    echo "   alembic upgrade head"
+    echo ""
+    echo "🛑 Para detener PostgreSQL:"
+    echo "   docker stop ${CONTAINER_NAME}"
+    echo ""
+    echo "🗑️  Para eliminar PostgreSQL y sus datos:"
+    echo "   docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && docker volume rm raven-postgres-data"
+else
+    echo "❌ Error: No se pudo conectar a PostgreSQL"
+    exit 1
+fi

@@ -13,8 +13,8 @@ class MetadataSearch(Base):
     __tablename__ = "metadata_searches"
 
     id = Column(Integer, primary_key=True, index=True)
-    update_date = Column(DateTime(timezone=True), onupdate=func.utcnow())
-    created_date = Column(DateTime(timezone=True), server_default=func.utcnow())
+    update_date = Column(DateTime(timezone=True), onupdate=func.now())
+    created_date = Column(DateTime(timezone=True), server_default=func.now())
     shared = Column(String)  # For sharing configuration
     type_cancer = Column(String)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))

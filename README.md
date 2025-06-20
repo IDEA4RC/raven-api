@@ -17,17 +17,37 @@ This project implements a RESTful API for the RAVEN platform using FastAPI, SQLA
 ## Requirements
 
 - Python 3.11+
-- PostgreSQL 12+
+- Docker and Docker Compose
 - pip (package manager for Python)
-- Docker (for container building)
-- MicroK8s or Kubernetes with Istio (for deployment)
-- OpenSSL (for TLS certificate generation)
+
+## Quick Start 🚀
+
+For the fastest setup, use our quick start script:
+
+```bash
+git clone https://github.com/your-username/raven-api.git
+cd raven-api
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+./scripts/quick-start.sh
+```
+
+This will automatically:
+- Install all dependencies
+- Start PostgreSQL in Docker
+- Run database migrations
+- Optionally seed the database
+
+Then start the API:
+```bash
+uvicorn main:app --reload
+```
 
 ## Installation and Setup
 
-### Option 1: Automatic Migration from SQLite to PostgreSQL
+### Option 1: Quick Setup with Docker Compose (Recommended)
 
-If you have an existing SQLite database and want to migrate to PostgreSQL:
+The easiest way to get PostgreSQL running:
 
 1. Clone the repository:
    ```bash
@@ -42,16 +62,33 @@ If you have an existing SQLite database and want to migrate to PostgreSQL:
    pip install -r requirements.txt
    ```
 
-3. Run the complete migration script:
+3. Start PostgreSQL with Docker Compose:
+   ```bash
+   ./scripts/setup-postgresql-compose.sh
+   ```
+
+4. Run database migrations:
+   ```bash
+   export DATABASE_URI="postgresql://raven_user:raven_password@localhost:5432/raven_db"
+   alembic upgrade head
+   ```
+
+### Option 2: Automatic Migration from SQLite to PostgreSQL
+
+If you have an existing SQLite database and want to migrate to PostgreSQL:
+
+1. Clone the repository and setup virtual environment (steps 1-2 from Option 1)
+
+2. Run the complete migration script:
    ```bash
    ./scripts/migrate_to_postgresql.sh
    ```
 
-### Option 2: Fresh PostgreSQL Installation
+### Option 3: Manual Docker Setup
 
-For a new installation with PostgreSQL:
+If you prefer manual Docker commands:
 
-1. Setup PostgreSQL:
+1. Start PostgreSQL container:
    ```bash
    ./scripts/setup-postgresql.sh
    ```
@@ -68,10 +105,24 @@ For a new installation with PostgreSQL:
    alembic upgrade head
    ```
 
-4. Seed the database (optional):
-   ```bash
-   python scripts/seed_db.py
-   ```
+### Managing PostgreSQL with Docker
+
+```bash
+# Start PostgreSQL (Docker Compose)
+docker compose -f docker-compose.postgres.yml up -d
+
+# Stop PostgreSQL
+docker compose -f docker-compose.postgres.yml down
+
+# View PostgreSQL logs
+docker compose -f docker-compose.postgres.yml logs -f
+
+# Remove PostgreSQL and data
+docker compose -f docker-compose.postgres.yml down -v
+
+# Connect to PostgreSQL directly
+docker exec -it raven-postgres psql -U raven_user -d raven_db
+```
 
 ## API Endpoints
 

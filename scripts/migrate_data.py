@@ -38,9 +38,30 @@ def migrate_data():
         
         print("Conectado a ambas bases de datos.")
         
-        # Obtener lista de tablas de SQLite
+        # Obtener lista de tablas de SQLite en orden de dependencias
+        table_order = [
+            'organizations',
+            'user_types', 
+            'teams',
+            'users',
+            'user_teams',
+            'workspaces',
+            'workspace_histories',
+            'permits',
+            'algorithms',
+            'cohorts',
+            'analyses',
+            'metadata_searches',
+            'cohort_algorithms',
+            'cohort_results'
+        ]
+        
+        # Obtener todas las tablas disponibles
         sqlite_cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [row[0] for row in sqlite_cursor.fetchall() if row[0] != 'alembic_version']
+        available_tables = [row[0] for row in sqlite_cursor.fetchall() if row[0] != 'alembic_version']
+        
+        # Filtrar solo las tablas que existen
+        tables = [table for table in table_order if table in available_tables]
         
         for table in tables:
             print(f"Migrando tabla: {table}")
@@ -92,9 +113,21 @@ def migrate_data():
                 pg_cursor.executemany(insert_query, migrated_rows)
             else:
                 # Migración normal para otras tablas
+                migrated_rows = []
+                for row in rows:
+                    # Convertir valores para compatibilidad PostgreSQL
+                    converted_row = []
+                    for i, (col, val) in enumerate(zip(columns, row)):
+                        # Convertir booleanos para PostgreSQL
+                        if table == 'users' and col == 'is_active':
+                            converted_row.append(bool(val) if val is not None else None)
+                        else:
+                            converted_row.append(val)
+                    migrated_rows.append(tuple(converted_row))
+                
                 placeholders = ', '.join(['%s'] * len(columns))
                 insert_query = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
-                pg_cursor.executemany(insert_query, rows)
+                pg_cursor.executemany(insert_query, migrated_rows)
             
             print(f"  Migrados {len(rows)} registros")
         

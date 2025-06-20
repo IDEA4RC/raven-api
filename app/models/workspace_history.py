@@ -14,7 +14,7 @@ class WorkspaceHistory(Base):
     __tablename__ = "workspace_histories"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime(timezone=True), default=datetime.utcnow)
+    date = Column(DateTime(timezone=True), default=func.now())
     action = Column(String)
     description = Column(String)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))

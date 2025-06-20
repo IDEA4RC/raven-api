@@ -3,7 +3,7 @@ Permit model for the database
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
@@ -14,12 +14,12 @@ class Permit(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     permit_name = Column(String, index=True)
-    creation_date = Column(DateTime(timezone=True), default=datetime.utcnow)
+    creation_date = Column(DateTime(timezone=True), default=func.now())
     validity_date = Column(DateTime(timezone=True))
     team_id = Column(Integer, ForeignKey("teams.id"))
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
     status = Column(Integer)  # enum: pending/initiated/submitted/rejected/granted/canceled
-    update_date = Column(DateTime(timezone=True), default=datetime.utcnow)
+    update_date = Column(DateTime(timezone=True), default=func.now())
     
     # Relationships
     team = relationship("Team", back_populates="permits")

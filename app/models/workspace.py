@@ -17,7 +17,7 @@ class Workspace(Base):
     name = Column(String, index=True, nullable=False)
     description = Column(Text)
     version = Column(String)
-    creation_date = Column(DateTime(timezone=True), default=datetime.utcnow)
+    creation_date = Column(DateTime(timezone=True), default=func.now())
     creator_id = Column(Integer, ForeignKey("users.id"))
     team_ids = Column(ARRAY(String))  # Changed from team_id to team_ids array
     last_edit = Column(DateTime(timezone=True))
@@ -29,7 +29,7 @@ class Workspace(Base):
     
     # Relationships
     creator = relationship("User", foreign_keys=[creator_id])
-    # Note: removed direct team relationship since we now have an array of team IDs
+    # Note: team relationship removed since we now have an array of team IDs (team_ids)
     histories = relationship("WorkspaceHistory", back_populates="workspace")
     metadata_searches = relationship("MetadataSearch", back_populates="workspace")
     analyses = relationship("Analysis", back_populates="workspace")

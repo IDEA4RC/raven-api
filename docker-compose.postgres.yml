@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: raven-postgres
+    environment:
+      POSTGRES_DB: raven_db
+      POSTGRES_USER: raven_user
+      POSTGRES_PASSWORD: raven_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - raven-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raven_user -d raven_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  raven-postgres-data:
+    driver: local

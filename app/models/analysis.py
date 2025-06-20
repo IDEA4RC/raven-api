@@ -15,7 +15,7 @@ class Analysis(Base):
     id = Column(Integer, primary_key=True, index=True)
     analysis_name = Column(String, index=True)
     description = Column(Text)
-    creation_date = Column(DateTime(timezone=True), server_default=func.utcnow())
+    creation_date = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String)
     details = Column(Text)
     creator_id = Column(Integer, ForeignKey("users.id"))
