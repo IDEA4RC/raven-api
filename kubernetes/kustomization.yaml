@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: raven-api-base
+
+resources:
+  - secrets.yaml
+  - configmap.yaml
+  - postgres-deployment.yaml
+  - deployment.yaml
+  - service.yaml
+
+images:
+  - name: localhost:32000/raven-api
+    newTag: latest
+
+commonLabels:
+  app.kubernetes.io/name: raven-api
+  app.kubernetes.io/part-of: raven-platform
+  app.kubernetes.io/managed-by: kustomize
+
+namespace: raven-api

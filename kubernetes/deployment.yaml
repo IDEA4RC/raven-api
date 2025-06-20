@@ -43,15 +43,27 @@ spec:
             secretKeyRef:
               name: raven-api-secrets
               key: secret-key
+        - name: PROJECT_NAME
+          value: "RAVEN API"
+        - name: API_V1_STR
+          value: "/raven-api/v1"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: BACKEND_CORS_ORIGINS
+          value: '["http://localhost", "https://host02.idea.lst.tfo.upm.es"]'
         readinessProbe:
           httpGet:
             path: /raven-api/v1/health/
             port: 8000
-          initialDelaySeconds: 5
+          initialDelaySeconds: 10
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         livenessProbe:
           httpGet:
             path: /raven-api/v1/health/
             port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 20
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3

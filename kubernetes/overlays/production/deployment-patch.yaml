@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raven-api
+spec:
+  template:
+    spec:
+      containers:
+      - name: raven-api
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: BACKEND_CORS_ORIGINS
+          value: '["https://yourdomain.com", "https://api.yourdomain.com"]'

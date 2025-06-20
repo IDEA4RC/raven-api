@@ -149,6 +149,69 @@ Interactive documentation will be available at:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## 🚀 Deployment
+
+### Kubernetes Deployment
+
+For production deployment in Kubernetes clusters:
+
+#### Quick Deployment
+```bash
+# Build Docker image
+./scripts/build-docker.sh
+
+# Deploy to Kubernetes
+./scripts/deploy-k8s.sh
+```
+
+This will:
+- ✅ Create namespace and apply configurations
+- ✅ Deploy PostgreSQL with persistent storage
+- ✅ Initialize database with required tables
+- ✅ Deploy the API with health checks
+- ✅ Configure Istio (if available) for advanced networking
+
+#### Manual Kubernetes Deployment
+```bash
+# Apply configurations manually
+kubectl apply -k kubernetes/
+
+# For production environment
+kubectl apply -k kubernetes/overlays/production/
+```
+
+#### Verify Deployment
+```bash
+# Check pod status
+kubectl get pods -n raven-api
+
+# View API logs
+kubectl logs -f deployment/raven-api -n raven-api
+
+# Test API health
+kubectl port-forward service/raven-api-service 8000:8000 -n raven-api
+curl http://localhost:8000/raven-api/v1/health/
+```
+
+📋 **Detailed Kubernetes documentation**: [docs/kubernetes-deployment.md](docs/kubernetes-deployment.md)
+
+### Docker Deployment
+
+For simple Docker deployment:
+
+```bash
+# Build image
+docker build -t raven-api .
+
+# Run with Docker Compose (includes PostgreSQL)
+docker compose -f docker-compose.postgres.yml up -d
+
+# Run standalone container
+docker run -p 8000:8000 \
+  -e DATABASE_URI="postgresql://user:pass@host:5432/db" \
+  raven-api
+```
+
 ## Project Structure
 
 ```
