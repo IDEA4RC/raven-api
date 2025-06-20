@@ -5,15 +5,15 @@ metadata:
   name: raven-api-base
 
 resources:
-  - secrets.yaml
-  - configmap.yaml
-  - postgres-deployment.yaml
-  - deployment.yaml
-  - service.yaml
+- secrets.yaml
+- configmap.yaml
+- postgres-deployment.yaml
+- deployment.yaml
+- service.yaml
 
 images:
-  - name: localhost:32000/raven-api
-    newTag: latest
+- name: localhost:32000/raven-api
+  newTag: latest
 
 commonLabels:
   app.kubernetes.io/name: raven-api

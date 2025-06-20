@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para migrar datos de SQLite a PostgreSQL
+Script to migrate data from SQLite to PostgreSQL
 """
 
 import os
@@ -10,9 +10,9 @@ from psycopg2.extras import execute_values
 from datetime import datetime
 
 def migrate_data():
-    """Migra datos de SQLite a PostgreSQL"""
+    """Migrates data from SQLite to PostgreSQL"""
     
-    # Configuración de bases de datos
+    # Database configuration
     sqlite_db = "/home/aalonso/LST/IDEA4RC/raven-api/raven.db"
     pg_config = {
         'host': 'localhost',
@@ -23,8 +23,8 @@ def migrate_data():
     }
     
     if not os.path.exists(sqlite_db):
-        print(f"Base de datos SQLite no encontrada: {sqlite_db}")
-        print("Saltando migración de datos...")
+        print(f"SQLite database not found: {sqlite_db}")
+        print("Skipping data migration...")
         return
     
     try:
@@ -36,9 +36,9 @@ def migrate_data():
         pg_conn = psycopg2.connect(**pg_config)
         pg_cursor = pg_conn.cursor()
         
-        print("Conectado a ambas bases de datos.")
+        print("Connected to both databases.")
         
-        # Obtener lista de tablas de SQLite en orden de dependencias
+        # Get list of SQLite tables in dependency order
         table_order = [
             'organizations',
             'user_types', 
@@ -56,34 +56,34 @@ def migrate_data():
             'cohort_results'
         ]
         
-        # Obtener todas las tablas disponibles
+        # Get all available tables
         sqlite_cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         available_tables = [row[0] for row in sqlite_cursor.fetchall() if row[0] != 'alembic_version']
         
-        # Filtrar solo las tablas que existen
+        # Filter only existing tables
         tables = [table for table in table_order if table in available_tables]
         
         for table in tables:
-            print(f"Migrando tabla: {table}")
+            print(f"Migrating table: {table}")
             
-            # Obtener datos de SQLite
+            # Get data from SQLite
             sqlite_cursor.execute(f"SELECT * FROM {table}")
             rows = sqlite_cursor.fetchall()
             
             if not rows:
-                print(f"  No hay datos en {table}")
+                print(f"  No data in {table}")
                 continue
             
-            # Obtener nombres de columnas
+            # Get column names
             sqlite_cursor.execute(f"PRAGMA table_info({table})")
             columns = [col[1] for col in sqlite_cursor.fetchall()]
             
-            # Limpiar tabla en PostgreSQL
+            # Clean table in PostgreSQL
             pg_cursor.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE")
             
-            # Insertar datos en PostgreSQL
+            # Insert data into PostgreSQL
             if table == 'workspaces':
-                # Manejar la migración especial para workspaces (team_id -> team_ids)
+                # Handle special migration for workspaces (team_id -> team_ids)
                 migrated_rows = []
                 for row in rows:
                     row_dict = dict(zip(columns, row))
@@ -96,11 +96,11 @@ def migrate_data():
                                 # Saltar team_id
                                 continue
                             new_row.append(row[i])
-                        # Añadir team_ids como array
+                        # Add team_ids as array
                         new_row.append([str(row_dict['team_id'])])
                         migrated_rows.append(tuple(new_row))
                     else:
-                        # Sin team_id, añadir array vacío
+                        # No team_id, add empty array
                         new_row = list(row)[:-1] if 'team_id' in columns else list(row)
                         new_row.append([])
                         migrated_rows.append(tuple(new_row))
@@ -112,7 +112,7 @@ def migrate_data():
                 
                 pg_cursor.executemany(insert_query, migrated_rows)
             else:
-                # Migración normal para otras tablas
+                # Normal migration for other tables
                 migrated_rows = []
                 for row in rows:
                     # Convertir valores para compatibilidad PostgreSQL
@@ -133,10 +133,10 @@ def migrate_data():
         
         # Confirmar cambios
         pg_conn.commit()
-        print("Migración completada exitosamente!")
+        print("Migration completed successfully!")
         
     except Exception as e:
-        print(f"Error durante la migración: {e}")
+        print(f"Error during migration: {e}")
         if 'pg_conn' in locals():
             pg_conn.rollback()
     finally:

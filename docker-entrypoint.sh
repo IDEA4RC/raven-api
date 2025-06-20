@@ -1,5 +1,5 @@
 #!/bin/sh
-# Iniciar proceso de migración con validación
+# Start migration process with validation
 echo "Verificando estado de migraciones..."
 python /app/scripts/fix_migrations.py
 
@@ -7,5 +7,5 @@ python /app/scripts/fix_migrations.py
 echo "Aplicando migraciones de base de datos..."
 alembic upgrade head
 
-# Iniciar la aplicación
+# Start the application
 exec "$@"

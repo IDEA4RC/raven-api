@@ -108,5 +108,5 @@ def logout(refresh_token: str) -> None:
     """
     # COMENTADO PARA PRUEBAS - Fin
     
-    # En modo pruebas, no hacemos nada, simplemente devolvemos éxito
+    # In test mode, don't do anything, just return success
     return None

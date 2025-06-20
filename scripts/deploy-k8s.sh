@@ -74,9 +74,9 @@ if kubectl get crd gateways.networking.istio.io &> /dev/null; then
     show_progress "8. Configurando Istio Gateway y VirtualService..."
     kubectl apply -n raven-api -f kubernetes/gateway.yaml
     kubectl apply -n raven-api -f kubernetes/virtual-service.yaml
-    show_success "Configuración de Istio aplicada"
+    show_success "Istio configuration applied"
 else
-    show_warning "Istio no detectado, saltando configuración de Gateway"
+    show_warning "Istio not detected, skipping Gateway configuration"
 fi
 
 # Mostrar información del despliegue

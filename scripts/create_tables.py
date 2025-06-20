@@ -6,7 +6,7 @@ Script para crear las tablas de PostgreSQL directamente
 import os
 import sys
 
-# Añadir el directorio raíz al path
+# Add root directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine
@@ -33,7 +33,7 @@ def create_tables():
     """Crear todas las tablas en PostgreSQL"""
     print("🔨 Creando tablas en PostgreSQL...")
     
-    # Usar la configuración de PostgreSQL
+    # Use PostgreSQL configuration
     database_uri = "postgresql://raven_user:raven_password@localhost:5432/raven_db"
     
     try:

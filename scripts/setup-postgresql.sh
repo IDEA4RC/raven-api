@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script para configurar PostgreSQL con Docker para el proyecto RAVEN API
+# Script to set up PostgreSQL with Docker for the RAVEN API project
 
 echo "Configurando PostgreSQL con Docker para RAVEN API..."
 
@@ -66,8 +66,8 @@ if docker exec ${CONTAINER_NAME} pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB
     echo "   - Host: localhost"
     echo "   - Puerto: ${POSTGRES_PORT}"
     echo "   - Base de datos: ${POSTGRES_DB}"
-    echo "   - Usuario: ${POSTGRES_USER}"
-    echo "   - Contraseña: ${POSTGRES_PASSWORD}"
+    echo "   - User: ${POSTGRES_USER}"
+    echo "   - Password: ${POSTGRES_PASSWORD}"
     echo "   - Contenedor: ${CONTAINER_NAME}"
     echo ""
     echo "🔗 URL de conexión:"

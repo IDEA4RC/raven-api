@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script de inicio rápido para RAVEN API con PostgreSQL en Docker
+# Quick start script for RAVEN API with PostgreSQL in Docker
 
 echo "🚀 RAVEN API - Inicio Rápido con Docker"
 echo "====================================="
@@ -52,15 +52,15 @@ if [ -f "scripts/seed_db.py" ]; then
 fi
 
 echo ""
-echo "🎉 ¡Configuración completada!"
+echo "🎉 Setup completed!"
 echo ""
-echo "📋 Resumen de la configuración:"
-echo "   🐘 PostgreSQL: Ejecutándose en Docker (puerto 5432)"
-echo "   🗄️  Base de datos: raven_db"
-echo "   👤 Usuario: raven_user"
+echo "📋 Configuration summary:"
+echo "   🐘 PostgreSQL: Running on Docker (port 5432)"
+echo "   🗄️  Database: raven_db"
+echo "   👤 User: raven_user"
 echo "   🔗 URL: postgresql://raven_user:raven_password@localhost:5432/raven_db"
 echo ""
-echo "🚀 Para iniciar la API ejecuta:"
+echo "🚀 To start the API run:"
 echo "   uvicorn main:app --reload"
 echo ""
 echo "📝 Comandos útiles:"

@@ -1,79 +1,79 @@
-# Documentación de los modelos y flujo de trabajo - Workspace, Permit y WorkspaceHistory
+# Models and Workflow Documentation - Workspace, Permit and WorkspaceHistory
 
-## Descripción General
+## Overview
 
-Este documento explica la interacción entre Workspace, Permit y WorkspaceHistory en la plataforma RAVEN API.
+This document explains the interaction between Workspace, Permit and WorkspaceHistory in the RAVEN API platform.
 
-## Autenticación con Keycloak
+## Keycloak Authentication
 
-La autenticación de usuarios se realiza mediante Keycloak, un sistema de gestión de identidad y acceso. Los usuarios se autentican contra Keycloak, y nuestra API utiliza los tokens JWT de Keycloak para validar las solicitudes.
+User authentication is handled through Keycloak, an identity and access management system. Users authenticate against Keycloak, and our API uses Keycloak JWT tokens to validate requests.
 
-### Flujo de Autenticación
+### Authentication Flow
 
-1. El usuario envía sus credenciales a nuestra API a través del endpoint `/raven-api/v1/auth/login`
-2. Nuestra API reenvía estas credenciales a Keycloak para su validación
-3. Si la validación es exitosa, Keycloak devuelve un token JWT
-4. Nuestra API devuelve este token al usuario
-5. El usuario incluye este token en todas las solicitudes posteriores
-6. Nuestra API verifica el token con Keycloak y determina si el usuario tiene acceso
+1. User sends credentials to our API through the `/raven-api/v1/auth/login` endpoint
+2. Our API forwards these credentials to Keycloak for validation
+3. If validation is successful, Keycloak returns a JWT token
+4. Our API returns this token to the user
+5. User includes this token in all subsequent requests
+6. Our API verifies the token with Keycloak and determines if the user has access
 
-Los IDs de usuario en nuestra base de datos corresponden a los IDs de Keycloak, lo que garantiza consistencia entre ambos sistemas.
+User IDs in our database correspond to Keycloak IDs, ensuring consistency between both systems.
 
-## Modelos de Base de Datos
+## Database Models
 
 ### Workspace
 
-El Workspace representa un espacio donde los investigadores pueden trabajar con datos médicos para sus análisis.
+The Workspace represents a space where researchers can work with medical data for their analyses.
 
-**Atributos principales:**
-- `id`: Identificador único del workspace
-- `team_id`: Equipo al que pertenece el workspace
-- `data_access`: Estado de acceso a los datos (1=Pendiente, 2=Solicitado, 3=Aprobado, 4=Rechazado)
-- `last_modification_date`: Última fecha de modificación
+**Main attributes:**
+- `id`: Unique workspace identifier
+- `team_ids`: Teams that the workspace belongs to (array of strings)
+- `data_access`: Data access status (1=Pending, 2=Requested, 3=Approved, 4=Rejected)
+- `last_modification_date`: Last modification date
 
 ### Permit
 
-El Permit representa un permiso para acceder a los datos dentro de un workspace.
+The Permit represents permission to access data within a workspace.
 
-**Atributos principales:**
-- `id`: Identificador único del permiso
-- `workspace_id`: Workspace al que pertenece este permiso
-- `status`: Estado del permiso (1=Pendiente, 2=Solicitado, 3=Aprobado, 4=Rechazado)
-- `update_date`: Fecha de última actualización
+**Main attributes:**
+- `id`: Unique permit identifier
+- `workspace_id`: Workspace this permit belongs to
+- `status`: Permit status (1=Pending, 2=Requested, 3=Approved, 4=Rejected)
+- `update_date`: Last update date
 
 ### WorkspaceHistory
 
-El WorkspaceHistory registra todos los cambios y eventos importantes que ocurren en un workspace.
+The WorkspaceHistory records all important changes and events that occur in a workspace.
 
-**Atributos principales:**
-- `id`: Identificador único del registro histórico
-- `workspace_id`: Workspace al que pertenece este registro
-- `creator_id`: Usuario que realizó la acción
-- `date`: Fecha del evento
-- `action`: Descripción corta de la acción realizada
-- `phase`: Fase en la que se encuentra el workspace
-- `details`: Detalles adicionales sobre el evento
+**Main attributes:**
+- `id`: Unique historical record identifier
+- `workspace_id`: Workspace this record belongs to
+- `creator_id`: User who performed the action
+- `date`: Event date
+- `action`: Short description of the action performed
+- `phase`: Phase the workspace is in
+- `details`: Additional details about the event
 
-## Flujo de Trabajo
+## Workflow
 
-1. **Creación del Workspace**:
-   - Se crea un nuevo Workspace
-   - Se crea un Permit inicial con estado "Pendiente"
-   - Se registra en WorkspaceHistory la creación del Workspace
+1. **Workspace Creation**:
+   - A new Workspace is created
+   - An initial Permit is created with "Pending" status
+   - The Workspace creation is recorded in WorkspaceHistory
 
-2. **Solicitud de Acceso a Datos**:
-   - El usuario actualiza el Permit a estado "Solicitado"
-   - Se actualiza el Workspace con data_access="Solicitado"
-   - Se registra en WorkspaceHistory el evento de solicitud
+2. **Data Access Request**:
+   - User updates the Permit to "Requested" status
+   - The Workspace is updated with data_access="Requested"
+   - The request event is recorded in WorkspaceHistory
 
-3. **Aprobación/Rechazo del Permiso**:
-   - Un administrador actualiza el Permit a "Aprobado" o "Rechazado"
-   - Se actualiza el Workspace correspondiente
-   - Se registra en WorkspaceHistory el evento de aprobación/rechazo
+3. **Permit Approval/Rejection**:
+   - An administrator updates the Permit to "Approved" or "Rejected"
+   - The corresponding Workspace is updated
+   - The approval/rejection event is recorded in WorkspaceHistory
 
-## Estados y Constantes
+## States and Constants
 
-Los estados se definen como enumeraciones en `app/utils/constants.py`:
+States are defined as enumerations in `app/utils/constants.py`:
 
 ```python
 class PermitStatus(int, Enum):
@@ -89,37 +89,47 @@ class DataAccessStatus(int, Enum):
     REJECTED = 4
 ```
 
-## Endpoints Principales
+## Main Endpoints
 
 ### Workspaces
 
-- `POST /workspaces/`: Crea un nuevo workspace
-- `GET /workspaces/{workspace_id}`: Obtiene un workspace por ID
-- `PATCH /workspaces/{workspace_id}/data-access`: Actualiza el estado de acceso a datos
+- `POST /workspaces/`: Creates a new workspace
+- `GET /workspaces/{workspace_id}`: Gets a workspace by ID
+- `PATCH /workspaces/{workspace_id}/data-access`: Updates data access status
+- `GET /workspaces/`: Lists workspaces (with optional user_id filter)
+- `DELETE /workspaces/{workspace_id}`: Deletes a workspace
 
 ### Permits
 
-- `GET /permits/{permit_id}`: Obtiene un permiso por ID
-- `GET /permits/workspace/{workspace_id}`: Obtiene todos los permisos de un workspace
-- `PATCH /permits/{permit_id}/status`: Actualiza el estado de un permiso
+- `GET /permits/{permit_id}`: Gets a permit by ID
+- `GET /permits/workspace/{workspace_id}`: Gets all permits for a workspace
+- `PATCH /permits/{permit_id}/status`: Updates permit status
+- `POST /permits/`: Creates a new permit
+- `PUT /permits/{permit_id}`: Updates a permit
+- `DELETE /permits/{permit_id}`: Deletes a permit
 
 ### Workspace History
 
-- `GET /workspace-history/{workspace_id}`: Obtiene el historial de un workspace
+- `GET /workspace-history/{workspace_id}`: Gets workspace history
 
-## Integración
+### Authentication
 
-El endpoint `/raven-api/v1/test-integration/submit-permit-request` muestra cómo se integran estos tres componentes:
-1. Actualiza el estado del permiso
-2. Actualiza el estado del workspace
-3. Genera entradas en el historial automáticamente
+- `POST /auth/login`: Authenticates user with Keycloak
+- `GET /auth/me`: Gets current user information
 
-## Diagrama de Secuencia
+## Integration
+
+The API endpoints show how these three components integrate:
+1. Update permit status
+2. Update workspace status
+3. Automatically generate history entries
+
+## Sequence Diagram
 
 ```
-Usuario -> API: Solicitar acceso a datos
-API -> Permit: Actualizar estado a SUBMITTED
-Permit -> Workspace: Actualizar data_access a SUBMITTED
-API -> WorkspaceHistory: Crear registro de la acción
-API -> Usuario: Respuesta con resultado
+User -> API: Request data access
+API -> Permit: Update status to SUBMITTED
+Permit -> Workspace: Update data_access to SUBMITTED
+API -> WorkspaceHistory: Create action record
+API -> User: Response with result
 ```

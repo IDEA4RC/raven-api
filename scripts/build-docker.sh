@@ -20,7 +20,7 @@ show_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Configuración
+# Configuration
 IMAGE_NAME="raven-api"
 VERSION=${1:-latest}
 REGISTRY=${DOCKER_REGISTRY:-localhost:32000}

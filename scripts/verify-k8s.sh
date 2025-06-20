@@ -24,7 +24,7 @@ show_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-echo "🔍 Verificando configuración de Kubernetes para RAVEN API..."
+echo "🔍 Verifying Kubernetes configuration for RAVEN API..."
 echo
 
 # Verificar kubectl

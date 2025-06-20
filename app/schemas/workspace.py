@@ -11,7 +11,7 @@ class WorkspaceBase(BaseModel):
     """Schema base para espacios de trabajo."""
     name: str
     description: Optional[str] = None
-    data_access: int  # 2 = Submitted según el diagrama
+    data_access: int  # 2 = Submitted according to diagram
     last_edit: Optional[datetime] = None
 
 
@@ -36,6 +36,6 @@ class Workspace(WorkspaceBase):
     team_ids: List[str]  # Changed from team_id to team_ids array
     
     class Config:
-        """Configuración para el schema."""
+        """Configuration for the schema."""
         orm_mode = True
         from_attributes = True

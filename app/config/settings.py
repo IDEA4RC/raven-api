@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     model_config = {
         "case_sensitive": True,
         "env_file": ".env",
-        "extra": "ignore"  # Permite campos extra en el archivo .env
+        "extra": "ignore"  # Allow extra fields in .env file
     }
 
 

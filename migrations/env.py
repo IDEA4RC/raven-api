@@ -32,7 +32,7 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 
-# Configuración de la URL de la base de datos desde settings
+# Database URL configuration from settings
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
 
 

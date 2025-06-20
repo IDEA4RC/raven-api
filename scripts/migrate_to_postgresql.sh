@@ -2,7 +2,7 @@
 
 # Script completo para migrar de SQLite a PostgreSQL usando Docker
 
-echo "=== MIGRACIÓN DE RAVEN API A POSTGRESQL (DOCKER) ==="
+echo "=== RAVEN API MIGRATION TO POSTGRESQL (DOCKER) ==="
 echo ""
 
 echo "1. 📦 Instalando dependencias de PostgreSQL..."
@@ -66,22 +66,22 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
-echo "4. 📊 Ejecutando migración de datos (si existe SQLite)..."
+echo "4. 📊 Running data migration (if SQLite exists)..."
 if [ -f "raven.db" ]; then
     echo "Base de datos SQLite encontrada, migrando datos..."
     python scripts/migrate_data.py
     
     if [ $? -eq 0 ]; then
-        echo "✅ Migración de datos completada"
+        echo "✅ Data migration completed"
     else
-        echo "⚠️  Error en migración de datos, pero PostgreSQL está configurado"
+        echo "⚠️  Error in data migration, but PostgreSQL is configured"
     fi
 else
-    echo "ℹ️  No se encontró base de datos SQLite, saltando migración de datos"
+    echo "ℹ️  SQLite database not found, skipping data migration"
 fi
 
 echo ""
-echo "=== ✅ MIGRACIÓN COMPLETADA ==="
+echo "=== ✅ MIGRATION COMPLETED ==="
 echo ""
 echo "🐘 PostgreSQL ejecutándose en Docker"
 echo "🚀 La aplicación ahora está configurada para usar PostgreSQL."

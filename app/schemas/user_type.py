@@ -1,5 +1,5 @@
 """
-Schema de tipo de usuario para validación de datos y serialización
+User type schema for data validation and serialization
 """
 
 from typing import Optional
@@ -7,27 +7,26 @@ from pydantic import BaseModel
 
 
 class UserTypeBase(BaseModel):
-    """Schema base para tipos de usuario."""
+    """Base schema for user types."""
     name: str
     description: Optional[str] = None
 
 
 class UserTypeCreate(UserTypeBase):
-    """Schema para crear un tipo de usuario."""
+    """Schema for creating a user type."""
     pass
 
 
 class UserTypeUpdate(BaseModel):
-    """Schema para actualizar un tipo de usuario."""
+    """Schema for updating a user type."""
     name: Optional[str] = None
     description: Optional[str] = None
 
 
 class UserType(UserTypeBase):
-    """Schema para leer un tipo de usuario."""
+    """Schema for reading a user type."""
     id: int
     
     class Config:
-        """Configuración para el schema."""
-        from_attributes = True
+        """Configuration for the schema."""
         from_attributes = True

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 class PermitBase(BaseModel):
     """Schema base para permisos."""
-    status: int  # 2 = Submitted según el diagrama
+    status: int  # 2 = Submitted according to diagram
     update_date: datetime = None
 
 
@@ -30,6 +30,6 @@ class Permit(PermitBase):
     workspace_id: int
     
     class Config:
-        """Configuración para el schema."""
+        """Configuration for the schema."""
         from_attributes = True
         from_attributes = True

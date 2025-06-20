@@ -30,6 +30,6 @@ class Organization(OrganizationBase):
     id: int
     
     class Config:
-        """Configuración para el schema."""
+        """Configuration for the schema."""
         from_attributes = True
         from_attributes = True

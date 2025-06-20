@@ -1,5 +1,5 @@
 """
-Schema de usuario para validación de datos y serialización
+User schema for data validation and serialization
 """
 
 from typing import Optional
@@ -8,7 +8,7 @@ import re
 
 
 class UserBase(BaseModel):
-    """Schema base para usuarios."""
+    """Base schema for users."""
     email: str
     username: str
     
@@ -24,14 +24,14 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Schema para crear un usuario."""
-    keycloak_id: str  # ID proporcionado por Keycloak
+    """Schema for creating a user."""
+    keycloak_id: str  # ID provided by Keycloak
     organization_id: int
     user_type_id: int
 
 
 class UserUpdate(BaseModel):
-    """Schema para actualizar un usuario."""
+    """Schema for updating a user."""
     email: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -40,24 +40,24 @@ class UserUpdate(BaseModel):
 
 
 class UserInDB(UserBase):
-    """Schema para leer un usuario de la base de datos."""
+    """Schema for reading a user from the database."""
     id: int
     keycloak_id: str
     organization_id: int
     user_type_id: int
     
     class Config:
-        """Configuración para el schema."""
+        """Configuration for the schema."""
         from_attributes = True
 
 
 class User(UserBase):
-    """Schema para leer un usuario."""
+    """Schema for reading a user."""
     id: int
     keycloak_id: str
     organization_id: int
     user_type_id: int
     
     class Config:
-        """Configuración para el schema."""
+        """Configuration for the schema."""
         from_attributes = True

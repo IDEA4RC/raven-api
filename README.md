@@ -227,29 +227,42 @@ raven-api/
 │   ├── services/           # Business logic
 │   └── utils/              # Utilities and helper functions
 │
-├── kubernetes/             # Kubernetes and Istio manifests
-│   ├── deployment.yaml     # Deployment definition
+├── kubernetes/             # Kubernetes deployment manifests
+│   ├── deployment.yaml     # API deployment definition
 │   ├── service.yaml        # Service definition
+│   ├── postgres-deployment.yaml # PostgreSQL deployment
+│   ├── configmap.yaml      # Configuration and DB initialization
+│   ├── secrets.yaml        # Secrets for configuration
+│   ├── kustomization.yaml  # Kustomize base configuration
 │   ├── gateway.yaml        # Istio Gateway configuration
 │   ├── gateway-with-https.yaml # Istio Gateway with HTTPS support
-│   ├── secrets.yaml        # Secrets for configuration
-│   └── virtual-service.yaml # Istio VirtualService configuration
+│   ├── virtual-service.yaml # Istio VirtualService configuration
+│   └── overlays/           # Environment-specific configurations
+│       └── production/     # Production overlay
 │
 ├── scripts/                # Utility scripts
-│   ├── check-istio.sh      # Check and enable Istio
-│   ├── check-registry.sh   # Check and enable MicroK8s registry
-│   ├── deploy.sh           # Deployment script
-│   ├── generate-tls-cert.sh # Generate TLS certificates
+│   ├── build-docker.sh     # Build and push Docker images
+│   ├── create_tables.py    # Create database tables
+│   ├── deploy-k8s.sh       # Deploy to Kubernetes
+│   ├── migrate_data.py     # Migrate data from SQLite to PostgreSQL
+│   ├── migrate_to_postgresql.sh # Complete migration script
+│   ├── quick-start.sh      # Quick development setup
 │   ├── seed_db.py          # Database seeder
-│   └── verify-api-access.sh # API accessibility verification
+│   ├── setup-postgresql.sh # Setup PostgreSQL with Docker
+│   ├── setup-postgresql-compose.sh # Setup PostgreSQL with Docker Compose
+│   └── verify-k8s.sh       # Verify Kubernetes cluster readiness
+│
+├── docs/                   # Documentation
+│   └── kubernetes-deployment.md # Detailed Kubernetes guide
 │
 ├── migrations/             # Database migrations
 ├── tests/                  # Unit and integration tests
 ├── .env.example            # Environment variables template
+├── docker-compose.postgres.yml # Docker Compose for PostgreSQL
 ├── docker-entrypoint.sh    # Docker entry point script
 ├── Dockerfile              # Definition for building the image
 ├── main.py                 # Application entry point
-├── raven-ctl.sh            # Main control script for RAVEN API
+├── raven-ctl.sh            # Legacy control script for Istio/MicroK8s
 ├── pyproject.toml          # Configuration for Python tools
 └── requirements.txt        # Project dependencies
 ```
