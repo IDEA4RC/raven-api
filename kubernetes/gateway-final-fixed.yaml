@@ -1,11 +1,8 @@
 apiVersion: networking.istio.io/v1alpha3
-kind    route:
-    - destination:
-        host: raven-api.raven-api.svc.cluster.local
-        port:
-          number: 8000eway
+kind: Gateway
 metadata:
   name: raven-gateway-final
+  namespace: default  # Los gateways de Istio normalmente van en default
 spec:
   selector:
     istio: ingressgateway
@@ -36,6 +33,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: raven-api-vs
+  namespace: default  # Los VirtualServices de Istio normalmente van en default
 spec:
   hosts:
   - "orchestrator.idea.lst.tfo.upm.es"
@@ -43,12 +41,12 @@ spec:
   gateways:
   - raven-gateway-final
   http:
-  # Todas las rutas van a la API
+  # Todas las rutas van a la API en el namespace raven-api
   - match:
     - uri:
         prefix: /
     route:
     - destination:
-        host: raven-api.default.svc.cluster.local
+        host: raven-api.raven-api.svc.cluster.local  # Servicio en namespace raven-api
         port:
           number: 80
