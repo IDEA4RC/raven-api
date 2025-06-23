@@ -2,7 +2,7 @@
 Servicio para operaciones con workspaces
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -40,7 +40,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
 
         # Crear historial
         workspace_history = WorkspaceHistory(
-            date=datetime.now(datetime.timezone.utc),
+            date=datetime.now(timezone.utc),
             action="Created workspace",
             description="Workspace created successfully",
             workspace_id=db_obj.id,
@@ -51,7 +51,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         # Crear registro de permiso inicial (estado pendiente)
         permit = Permit(
             status=PermitStatus.PENDING,  # 1 = Pending
-            update_date=datetime.now(datetime.timezone.utc),
+            update_date=datetime.now(timezone.utc),
             workspace_id=db_obj.id
         )
         db.add(permit)
@@ -79,7 +79,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         # Actualizar el workspace
         workspace_update = WorkspaceUpdate(
             data_access=data_access,
-            last_edit=datetime.now(datetime.timezone.utc)
+            last_edit=datetime.now(timezone.utc)
         )
         updated_workspace = self.update(db, db_obj=workspace, obj_in=workspace_update)
 
@@ -102,7 +102,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
             details = f"Data access status has been changed to {data_access}"
 
         workspace_history = WorkspaceHistory(
-            date=datetime.now(datetime.timezone.utc),
+            date=datetime.now(timezone.utc),
             action=action,
             phase=phase,
             details=details,
