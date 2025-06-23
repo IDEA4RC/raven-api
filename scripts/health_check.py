@@ -3,15 +3,19 @@
 import requests
 import sys
 import time
+import urllib3
 from urllib.parse import urljoin
+
+# Suprimir warnings de SSL
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuración
 DOMAIN = "https://orchestrator.idea.lst.tfo.upm.es"
 ENDPOINTS = [
     "/",
-    "/health",
-    "/api/v1/health",
-    "/docs"
+    "/raven-api/v1/health/",
+    "/docs", 
+    "/raven-api/v1/openapi.json"
 ]
 
 def check_endpoint(base_url, endpoint):
