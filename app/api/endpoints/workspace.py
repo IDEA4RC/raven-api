@@ -99,7 +99,7 @@ def get_workspaces(
     return workspaces
 
 
-@router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{workspace_id}", status_code=status.HTTP_200_OK)
 def delete_workspace(
     *,
     db: Session = Depends(get_db),
@@ -123,7 +123,13 @@ def delete_workspace(
             detail="Not enough permissions to delete this workspace"
         )
     
-    workspace_service.remove(db=db, id=workspace_id)
+    deleted_workspace = workspace_service.remove(db=db, id=workspace_id)
+    if not deleted_workspace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workspace with ID {workspace_id} not found"
+        )
+    return deleted_workspace
 
 
 @router.patch("/{workspace_id}/data-access", response_model=schemas.Workspace)

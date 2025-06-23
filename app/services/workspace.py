@@ -3,10 +3,8 @@ Servicio para operaciones con workspaces
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from app.models.workspace import Workspace
 from app.models.workspace_history import WorkspaceHistory
@@ -85,28 +83,24 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
 
         # Crear historial
         action = f"Updated data access to {data_access}"
+        description = ""
         if data_access == DataAccessStatus.SUBMITTED:
             action = "Submitted data access"
-            phase = "Data Access Request"
-            details = "The data access request has been submitted"
+            description = "The data access request has been submitted"
         elif data_access == DataAccessStatus.APPROVED:
             action = "Data access approved"
-            phase = "Data Access Status Change"
-            details = "The data access request has been approved"
+            description = "The data access request has been approved"
         elif data_access == DataAccessStatus.REJECTED:
             action = "Data access rejected"
-            phase = "Data Access Status Change"
-            details = "The data access request has been rejected"
+            description = "The data access request has been rejected"
         else:
-            phase = "Data Access Status Change"
-            details = f"Data access status has been changed to {data_access}"
+            description = f"Data access status has been changed to {data_access}"
 
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action=action,
-            phase=phase,
-            details=details,
-            creator_id=user_id,
+            description=description,
+            user_id=user_id,
             workspace_id=workspace_id
         )
         db.add(workspace_history)

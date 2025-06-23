@@ -26,7 +26,7 @@ def create_permit(
     """
     Creates a new permit for a workspace.
     """
-    permit = permit_service.create(db=db, obj_in=permit_in)
+    permit = permit_service.create_with_history(db=db, obj_in=permit_in, user_id=current_user.id)
     return permit
 
 
@@ -75,18 +75,19 @@ def update_permit(
     """
     Updates a permit.
     """
-    permit = permit_service.get(db=db, id=permit_id)
-    if not permit:
+    try:
+        permit = permit_service.update_with_history(
+            db=db, permit_id=permit_id, obj_in=permit_in, user_id=current_user.id
+        )
+        return permit
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Permit with ID {permit_id} not found"
+            detail=str(e)
         )
-    
-    permit = permit_service.update(db=db, db_obj=permit, obj_in=permit_in)
-    return permit
 
 
-@router.delete("/{permit_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{permit_id}", status_code=status.HTTP_200_OK)
 def delete_permit(
     *,
     db: Session = Depends(get_db),
@@ -96,14 +97,16 @@ def delete_permit(
     """
     Deletes a permit.
     """
-    permit = permit_service.get(db=db, id=permit_id)
-    if not permit:
+    try:
+        deleted_permit = permit_service.delete_with_history(
+            db=db, permit_id=permit_id, user_id=current_user.id
+        )
+        return deleted_permit
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Permit with ID {permit_id} not found"
+            detail=str(e)
         )
-    
-    permit_service.remove(db=db, id=permit_id)
 
 
 @router.get("/workspace/{workspace_id}", response_model=List[schemas.Permit])
@@ -143,15 +146,21 @@ def update_permit_status(
     *,
     db: Session = Depends(get_db),
     permit_id: int,
-    status: int,
+    permit_update: schemas.PermitUpdate,
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Updates the status of a permit.
     """
+    if permit_update.status is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Status field is required"
+        )
+    
     try:
         permit = permit_service.update_permit_status(
-            db=db, permit_id=permit_id, status=status, user_id=current_user.id
+            db=db, permit_id=permit_id, status=permit_update.status, user_id=current_user.id
         )
         return permit
     except ValueError as e:

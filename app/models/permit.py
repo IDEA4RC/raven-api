@@ -24,6 +24,3 @@ class Permit(Base):
     # Relationships
     team = relationship("Team", back_populates="permits")
     workspace = relationship("Workspace", back_populates="permits")
-    
-    # Relationships
-    team = relationship("Team", back_populates="permits")
