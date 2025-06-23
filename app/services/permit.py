@@ -39,14 +39,14 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         # Crear el permiso
         obj_in_data = obj_in.dict()
         if not obj_in_data.get("update_date"):
-            obj_in_data["update_date"] = datetime.utcnow()
+            obj_in_data["update_date"] = datetime.now(datetime.timezone.utc)
         db_obj = Permit(**obj_in_data)
         db.add(db_obj)
         db.flush()
         
         # Actualizar el workspace
         workspace.data_access = db_obj.status
-        workspace.last_modification_date = datetime.utcnow()
+        workspace.last_modification_date = datetime.now(datetime.timezone.utc)
         db.add(workspace)
         
         # Crear historial
@@ -58,7 +58,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             description = f"A new permit with status {db_obj.status} has been created"
             
         workspace_history = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action=action,
             description=description,
             user_id=user_id,
@@ -89,7 +89,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         # Update the permit status
         permit_update = PermitUpdate(
             status=status,
-            update_date=datetime.utcnow()
+            update_date=datetime.now(datetime.timezone.utc)
         )
         updated_permit = self.update(db, db_obj=permit, obj_in=permit_update)
 
@@ -97,7 +97,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         workspace = db.query(Workspace).filter(Workspace.id == permit.workspace_id).first()
         if workspace:
             workspace.data_access = status
-            workspace.last_modification_date = datetime.utcnow()
+            workspace.last_modification_date = datetime.now(datetime.timezone.utc)
             db.add(workspace)
 
         # Crear historial de workspace
@@ -115,7 +115,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             description = f"The permit status has been changed to {status}"
 
         workspace_history = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action=action,
             description=description,
             user_id=user_id,

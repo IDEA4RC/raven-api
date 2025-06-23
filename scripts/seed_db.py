@@ -135,14 +135,14 @@ def seed_database():
         print("Creating permits...")
         permit1 = Permit(
             permit_name="Cancer Data Access",
-            creation_date=datetime.utcnow(),
+            creation_date=datetime.now(datetime.timezone.utc),
             validity_date=datetime(2025, 12, 31),
             team_id=team1.id,
             status=4  # granted
         )
         permit2 = Permit(
             permit_name="Genomics Data Access",
-            creation_date=datetime.utcnow(),
+            creation_date=datetime.now(datetime.timezone.utc),
             validity_date=datetime(2026, 6, 30),
             team_id=team2.id,
             status=2  # submitted
@@ -159,7 +159,7 @@ def seed_database():
             team_id=team1.id,
             creator_id=user1.id,
             data_access=DataAccessStatus.APPROVED,      # granted
-            last_edit=datetime.utcnow()
+            last_edit=datetime.now(datetime.timezone.utc)
         )
         workspace2 = Workspace(
             name="Genomics Analysis Workspace",
@@ -167,7 +167,7 @@ def seed_database():
             team_id=team2.id,
             creator_id=user2.id,
             data_access=DataAccessStatus.SUBMITTED,      # submitted
-            last_edit=datetime.utcnow()
+            last_edit=datetime.now(datetime.timezone.utc)
         )
         
         db.add_all([workspace1, workspace2])
@@ -177,12 +177,12 @@ def seed_database():
         print("Creating permits...")
         permit1 = Permit(
             status=PermitStatus.APPROVED,  # approved
-            update_date=datetime.utcnow(),
+            update_date=datetime.now(datetime.timezone.utc),
             workspace_id=workspace1.id
         )
         permit2 = Permit(
             status=PermitStatus.SUBMITTED,  # submitted
-            update_date=datetime.utcnow(),
+            update_date=datetime.now(datetime.timezone.utc),
             workspace_id=workspace2.id
         )
         
@@ -192,7 +192,7 @@ def seed_database():
         # Create workspace history
         print("Creating workspace history...")
         history1 = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action="Workspace created",
             description="Initial workspace setup - Creation phase",
             user_id=user1.id,
@@ -200,7 +200,7 @@ def seed_database():
         )
         
         history2 = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action="Data access application submitted",
             description="The data permit application has been submitted - Data Permit phase",
             user_id=user1.id,
@@ -208,7 +208,7 @@ def seed_database():
         )
         
         history3 = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action="Data access application approved",
             description="The data permit application has been approved - Data Permit phase",
             user_id=user1.id,
@@ -216,7 +216,7 @@ def seed_database():
         )
         
         history4 = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action="Workspace created",
             description="Initial workspace setup - Creation phase",
             user_id=user3.id,
@@ -224,7 +224,7 @@ def seed_database():
         )
         
         history5 = WorkspaceHistory(
-            date=datetime.utcnow(),
+            date=datetime.now(datetime.timezone.utc),
             action="Data access application submitted",
             description="The data permit application has been submitted",
             user_id=user3.id,
