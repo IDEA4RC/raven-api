@@ -1,0 +1,47 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: raven-gateway-acme
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  # Servidor HTTP sin redirección para validación ACME
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "orchestrator.idea.lst.tfo.upm.es"
+    - "138.4.10.238"
+    # NO redirigir a HTTPS para permitir validación ACME
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: raven-acme-vs
+spec:
+  hosts:
+  - "orchestrator.idea.lst.tfo.upm.es"
+  - "138.4.10.238"
+  gateways:
+  - raven-gateway-acme
+  http:
+  # Ruta específica para desafíos ACME - debe permitir HTTP
+  - match:  
+    - uri:
+        prefix: /.well-known/acme-challenge/
+    route:
+    - destination:
+        host: cm-acme-http-solver-7z7vj.istio-system.svc.cluster.local
+        port:
+          number: 8089
+  # Todas las demás rutas van a la API
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: raven-api-service.default.svc.cluster.local
+        port:
+          number: 8000
