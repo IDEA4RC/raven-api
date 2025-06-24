@@ -7,15 +7,17 @@ from enum import Enum
 
 class PermitStatus(int, Enum):
     """Estados posibles para los permisos de datos"""
-    PENDING = 1
+    PENDING = 0
+    INICIATED = 1
     SUBMITTED = 2
     APPROVED = 3
     REJECTED = 4
 
 
 class DataAccessStatus(int, Enum):
-    """Estados posibles para el acceso a datos"""
-    PENDING = 1
+    """Estados posibles para el acceso a datos en un workspace"""
+    PENDING = 0
+    INICIATED = 1
     SUBMITTED = 2
     APPROVED = 3
     REJECTED = 4
