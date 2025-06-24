@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     KEYCLOAK_SERVER_URL: str = "https://idea4rc-keykloak.development-iti.com"
     KEYCLOAK_REALM: str = "idea4rc"
     KEYCLOAK_CLIENT_ID: str = "raven"
-    KEYCLOAK_CLIENT_SECRET: str = "client-secret"
+    KEYCLOAK_CLIENT_SECRET: str = "EfesLqjtooH49AYUU2U4ZkJKfQGFuUwx"
     KEYCLOAK_PUBLIC_KEY: Optional[str] = None
     KEYCLOAK_ADMIN_USERNAME: str = "admin"
     KEYCLOAK_ADMIN_PASSWORD: str = "admin"
