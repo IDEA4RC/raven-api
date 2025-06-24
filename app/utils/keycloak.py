@@ -4,6 +4,7 @@ Utilidades para la integración con Keycloak
 
 import json
 import logging
+import base64
 from typing import Dict, Optional, Any, List
 
 import requests
@@ -163,6 +164,37 @@ class KeycloakHandler:
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"Error al validar token: {e}")
+            # Como fallback, intentar decodificar el JWT directamente
+            return self._decode_jwt_payload(token)
+    
+    def _decode_jwt_payload(self, token: str) -> Optional[Dict[str, Any]]:
+        """
+        Decodifica el payload de un JWT sin verificar la firma
+        """
+        try:
+            # Los JWTs tienen 3 partes separadas por puntos: header.payload.signature
+            parts = token.split('.')
+            if len(parts) != 3:
+                logger.error("Token JWT no tiene el formato correcto")
+                return None
+            
+            # Decodificar el payload (segunda parte)
+            payload = parts[1]
+            
+            # Agregar padding si es necesario para base64
+            padding = len(payload) % 4
+            if padding:
+                payload += '=' * (4 - padding)
+            
+            # Decodificar base64
+            decoded_bytes = base64.urlsafe_b64decode(payload)
+            decoded_payload = json.loads(decoded_bytes.decode('utf-8'))
+            
+            logger.info("Token JWT decodificado exitosamente como fallback")
+            return decoded_payload
+            
+        except Exception as e:
+            logger.error(f"Error al decodificar JWT: {e}")
             return None
 
 

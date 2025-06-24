@@ -17,20 +17,8 @@ from app.db.session import SessionLocal
 from app.utils.security import ALGORITHM
 from app.utils.keycloak import keycloak_handler
 
-# COMENTED FOR TESTING - Start
-"""
-# Keycloack has its own token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
-"""
-# COMENTED FOR TESTING - End
 
-# In testing mode, we create an OAuth2PasswordBearer that does not require a token
-# Any value can be passed as a token or it can be left empty
-class DummyOAuth2PasswordBearer:
-    async def __call__(self, request: Request) -> str:
-        return "dummy_token"
-
-oauth2_scheme = DummyOAuth2PasswordBearer()
 
 
 def get_db() -> Generator:
@@ -48,10 +36,9 @@ def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> models.User:
     """
-    TESTING MODE: Returns an admin user without verifying authentication.
-    Original: Get current user from token using Keycloak.
-    """
-    # COMENTED FOR TESTING - Start
+    Get the current user from the database using the provided token.
+    Validates the token with Keycloak and retrieves the user information.
+    Raises HTTPException if the token is invalid or user is not found.
     """
     try:
         # Validamos el token con Keycloak
@@ -84,23 +71,8 @@ def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="Inactive user"
-    """
-    # COMENTED FOR TESTING - End
+            )
 
-    # In testing mode, we look for the first active admin user in the database
-    user = db.query(models.User).filter(models.User.is_active == True).first()
-
-    # If no users are found, we could return an error or create one
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="No users found in system. Please seed the database."
-        )
-    
-    return user
-
-    # COMENTED FOR TESTING - Start
-    """
     except HTTPException:
         raise
     except Exception as e:
@@ -108,5 +80,4 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Could not validate credentials: {str(e)}",
         )
-    """
-    # COMENTED FOR TESTING - End
+    return user

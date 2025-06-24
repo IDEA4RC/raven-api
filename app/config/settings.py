@@ -34,10 +34,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Keycloak
-    KEYCLOAK_SERVER_URL: str = "http://keycloak:8080/auth"
-    KEYCLOAK_REALM: str = "raven"
-    KEYCLOAK_CLIENT_ID: str = "raven-api"
+    KEYCLOAK_SERVER_URL: str = "https://idea4rc-keykloak.development-iti.com"
+    KEYCLOAK_REALM: str = "idea4rc"
+    KEYCLOAK_CLIENT_ID: str = "raven"
     KEYCLOAK_CLIENT_SECRET: str = "client-secret"
+    KEYCLOAK_PUBLIC_KEY: Optional[str] = None
     KEYCLOAK_ADMIN_USERNAME: str = "admin"
     KEYCLOAK_ADMIN_PASSWORD: str = "admin"
     

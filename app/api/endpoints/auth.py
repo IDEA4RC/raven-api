@@ -9,23 +9,124 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app import schemas
-from app.services.auth import auth_service
+from app.services.auth import AuthService
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
+from app.models.user_type import UserType
 
 router = APIRouter()
 
+# Create auth service instance
+auth_service = AuthService()
+
 
 @router.post("/login", response_model=Dict[str, Any])
-def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+) -> Any:
     """
-    TESTING MODE: Returns a dummy token without verifying credentials.
-    Original: Obtains an access token using user credentials.
-    """
-    # COMENTADO PARA PRUEBAS - Inicio
+    Authenticate user with Keycloak and return access token. If user is found, but is its first login, it will be saved in the database.
     """
     try:
+        # Authenticate user with Keycloak
+        if not form_data.username or not form_data.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username and password are required"
+            )
+        # Call the authentication service
+        if not auth_service:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication service is not available"
+            )
+        if not form_data.username.strip() or not form_data.password.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username and password cannot be empty"
+            )
         result = auth_service.authenticate(form_data.username, form_data.password)
+        
+        # Get user information from Keycloak using the access token
+        from app.utils.keycloak import keycloak_handler
+        access_token = result.get("access_token")
+        user_info = keycloak_handler.validate_token(access_token)
+        if not user_info:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No se pudo obtener la información del usuario de Keycloak"
+            )
+        
+        # If the user is not found in the database, create a new user
+        keycloak_id = user_info.get("sub")
+        if not keycloak_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="ID de usuario de Keycloak no encontrado"
+            )
+            
+        user = db.query(User).filter(User.keycloak_id == keycloak_id).first()
+        if not user:
+            # Get default user type for new users (Usuario estándar)
+            default_user_type = db.query(UserType).filter(UserType.description == "Usuario estándar").first()
+            if not default_user_type:
+                # Fallback to ID 4 if the description doesn't match
+                default_user_type_id = 4
+            else:
+                default_user_type_id = default_user_type.id
+            
+            user = User(
+                keycloak_id=keycloak_id,
+                username=form_data.username,
+                email=user_info.get("email", ""),
+                first_name=user_info.get("given_name", ""),
+                last_name=user_info.get("family_name", ""),
+                user_type_id=default_user_type_id
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            # User exists, check if any information needs to be updated
+            needs_update = False
+            
+            # Check for changes in user information
+            new_email = user_info.get("email", "")
+            new_first_name = user_info.get("given_name", "")
+            new_last_name = user_info.get("family_name", "")
+            
+            if user.email != new_email:
+                user.email = new_email
+                needs_update = True
+            
+            if user.first_name != new_first_name:
+                user.first_name = new_first_name
+                needs_update = True
+            
+            if user.last_name != new_last_name:
+                user.last_name = new_last_name
+                needs_update = True
+            
+            # Update username if it has changed
+            if user.username != form_data.username:
+                user.username = form_data.username
+                needs_update = True
+            
+            # If user doesn't have a user_type_id, assign the default one
+            if user.user_type_id is None:
+                default_user_type = db.query(UserType).filter(UserType.description == "Usuario estándar").first()
+                if not default_user_type:
+                    user.user_type_id = 4  # Fallback to ID 4
+                else:
+                    user.user_type_id = default_user_type.id
+                needs_update = True
+            
+            # Save changes if any updates were made
+            if needs_update:
+                db.commit()
+                db.refresh(user)
+    
         return result
     except HTTPException as e:
         raise e
@@ -34,26 +135,15 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error durante la autenticación: {str(e)}"
         )
-    """
-    # COMENTADO PARA PRUEBAS - Fin
-    
-    # En modo pruebas, devolvemos un token de acceso ficticio
-    return {
-        "access_token": "dummy_access_token_for_testing",
-        "token_type": "bearer",
-        "refresh_token": "dummy_refresh_token_for_testing",
-        "expires_in": 3600,
-        "scope": "openid profile email"
-    }
 
 
 @router.post("/refresh-token", response_model=Dict[str, Any])
-def refresh_token(refresh_token: str) -> Any:
+def refresh_token(
+    refresh_token: str,
+    db: Session = Depends(get_db)
+) -> Any:
     """
-    TESTING MODE: Returns a dummy token without verifying the refresh_token.
-    Original: Updates an access token using the refresh token.
-    """
-    # COMENTADO PARA PRUEBAS - Inicio
+    Updates an access token using the refresh token.
     """
     try:
         result = auth_service.refresh_token(refresh_token)
@@ -65,17 +155,6 @@ def refresh_token(refresh_token: str) -> Any:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al actualizar el token: {str(e)}"
         )
-    """
-    # COMENTADO PARA PRUEBAS - Fin
-    
-    # En modo pruebas, devolvemos un token de acceso ficticio nuevo
-    return {
-        "access_token": "new_dummy_access_token_for_testing",
-        "token_type": "bearer",
-        "refresh_token": "new_dummy_refresh_token_for_testing",
-        "expires_in": 3600,
-        "scope": "openid profile email"
-    }
 
 
 @router.get("/me", response_model=schemas.User)
@@ -89,12 +168,12 @@ def get_current_user_info(
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(refresh_token: str) -> None:
+def logout(
+    refresh_token: str,
+    db: Session = Depends(get_db)
+) -> None:
     """
-    TESTING MODE: Does nothing, simply returns success.
-    Original: Logs out the user by invalidating the token.
-    """
-    # COMENTADO PARA PRUEBAS - Inicio
+    Logs out the user by invalidating the token.
     """
     try:
         auth_service.logout(refresh_token)
@@ -105,8 +184,3 @@ def logout(refresh_token: str) -> None:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al cerrar sesión: {str(e)}"
         )
-    """
-    # COMENTADO PARA PRUEBAS - Fin
-    
-    # In test mode, don't do anything, just return success
-    return None
