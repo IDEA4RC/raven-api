@@ -18,8 +18,8 @@ class WorkspaceHistory(Base):
     action = Column(String)
     description = Column(String)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    creator_id = Column(Integer, ForeignKey("users.id"))
     
     # Relationships
     workspace = relationship("Workspace", back_populates="histories")
-    user = relationship("User")
+    creator = relationship("User", foreign_keys=[creator_id])
