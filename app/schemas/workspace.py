@@ -18,6 +18,12 @@ class WorkspaceBase(BaseModel):
 class WorkspaceCreate(WorkspaceBase):
     """Schema para crear un espacio de trabajo."""
     team_ids: List[str]  # Changed from team_id to team_ids array
+    metadata_search: int = 0  # enum: pending/in_progress/completed
+    data_access: int = 0  # enum: pending/initiated/submitted/rejected/granted/expired
+    data_analysis: int = 0  # enum: pending/in_progress/completed
+    result_report: int = 0
+    v6_study_id: Optional[str] = None
+    status: Optional[str] = None  # Optional field for status
 
 
 class WorkspaceUpdate(BaseModel):
@@ -34,6 +40,12 @@ class Workspace(WorkspaceBase):
     id: int
     creator_id: int
     team_ids: List[str]  # Changed from team_id to team_ids array
+    creation_date: datetime
+    metadata_search: int  # enum: pending/in_progress/completed
+    data_analysis: int  # enum: pending/in_progress/completed
+    result_report: int  # enum: pending/in_progress/completed
+    v6_study_id: Optional[str] = None
+    status: Optional[str] = None  # Optional field for status
     
     class Config:
         """Configuration for the schema."""

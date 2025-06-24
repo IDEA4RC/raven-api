@@ -26,6 +26,7 @@ class Workspace(Base):
     data_analysis = Column(Integer)  # enum: pending/in_progress/completed
     result_report = Column(Integer)    # enum: pending/in_progress/completed
     v6_study_id = Column(String)
+    status = Column(String)
     
     # Relationships
     creator = relationship("User", foreign_keys=[creator_id])
