@@ -17,7 +17,7 @@ class PermitCreate(PermitBase):
     """Schema para crear un permiso."""
     workspace_id: int
     permit_name: Optional[str] = None
-    validity_date: Optional[datetime] = None
+    expiration_date: Optional[datetime] = None
     team_id: Optional[int] = None
     
 
@@ -26,7 +26,7 @@ class PermitUpdate(BaseModel):
     status: Optional[int] = None
     update_date: Optional[datetime] = None
     permit_name: Optional[str] = None
-    validity_date: Optional[datetime] = None
+    expiration_date: Optional[datetime] = None
     team_id: Optional[int] = None
     user_teams_ids: Optional[List[str]] = None  # Campo para los IDs de equipos de usuario
 
@@ -37,7 +37,7 @@ class Permit(PermitBase):
     workspace_id: int
     permit_name: Optional[str] = None
     creation_date: Optional[datetime] = None
-    validity_date: Optional[datetime] = None
+    expiration_date: Optional[datetime] = None
     team_id: Optional[int] = None
     
     model_config = ConfigDict(from_attributes=True)
