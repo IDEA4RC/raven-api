@@ -18,5 +18,5 @@ class Team(Base):
     
     # Relationships
     users = relationship("User", secondary="user_teams", back_populates="teams")
-    permits = relationship("Permit", back_populates="team")
+    # permits = relationship("Permit", back_populates="team")  # Removed: using team_ids array instead
     # Note: workspaces relationship removed since we now use team_ids array in Workspace
