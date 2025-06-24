@@ -2,6 +2,7 @@
 Endpoints for authentication.
 """
 
+import logging
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +14,8 @@ from app.services.auth import AuthService
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.models.user_type import UserType
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -68,13 +71,21 @@ def login(
             
         user = db.query(User).filter(User.keycloak_id == keycloak_id).first()
         if not user:
-            # Get default user type for new users (Usuario estándar)
+            # Get default user type for new users
+            default_user_type_id = None
+            
+            # First try to find "Usuario estándar"
             default_user_type = db.query(UserType).filter(UserType.description == "Usuario estándar").first()
-            if not default_user_type:
-                # Fallback to ID 4 if the description doesn't match
-                default_user_type_id = 4
-            else:
+            if default_user_type:
                 default_user_type_id = default_user_type.id
+            else:
+                # If not found, try to get any available user type
+                any_user_type = db.query(UserType).first()
+                if any_user_type:
+                    default_user_type_id = any_user_type.id
+                    logger.warning(f"Using fallback user type: {any_user_type.description} (ID: {any_user_type.id})")
+                else:
+                    logger.warning("No user types found in database, creating user without user_type_id")
             
             user = User(
                 keycloak_id=keycloak_id,
