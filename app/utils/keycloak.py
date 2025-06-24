@@ -155,17 +155,19 @@ class KeycloakHandler:
         """
         Valida un token y devuelve la información del usuario
         """
-        url = f"{self.server_url}/realms/{self.realm_name}/protocol/openid-connect/userinfo"
-        headers = {"Authorization": f"Bearer {token}"}
+        # url = f"{self.server_url}/realms/{self.realm_name}/protocol/openid-connect/userinfo"
+        # headers = {"Authorization": f"Bearer {token}"}
         
-        try:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error al validar token: {e}")
-            # Como fallback, intentar decodificar el JWT directamente
-            return self._decode_jwt_payload(token)
+        # try:
+        #     response = requests.get(url, headers=headers)
+        #     response.raise_for_status()
+        #     return response.json()
+        # except requests.exceptions.RequestException as e:
+        #     logger.error(f"Error al validar token: {e}")
+        #     # Como fallback, intentar decodificar el JWT directamente
+        #     return self._decode_jwt_payload(token)
+
+        return self._decode_jwt_payload(token)
     
     def _decode_jwt_payload(self, token: str) -> Optional[Dict[str, Any]]:
         """
