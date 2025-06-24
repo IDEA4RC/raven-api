@@ -22,3 +22,4 @@ class MetadataSearch(Base):
     
     # Relationships
     workspace = relationship("Workspace", back_populates="metadata_searches")
+    permits = relationship("Permit", back_populates="metadata_search")
