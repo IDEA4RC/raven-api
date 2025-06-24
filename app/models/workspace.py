@@ -20,7 +20,7 @@ class Workspace(Base):
     creation_date = Column(DateTime(timezone=True), default=func.now())
     creator_id = Column(Integer, ForeignKey("users.id"))
     team_ids = Column(ARRAY(String))  # Changed from team_id to team_ids array
-    last_modification_date = Column(DateTime(timezone=True))
+    last_modification_date = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
     metadata_search = Column(Integer)  # enum: pending/in_progress/completed
     data_access = Column(Integer)      # enum: pending/initiated/submitted/rejected/granted/expired
     data_analysis = Column(Integer)  # enum: pending/in_progress/completed
