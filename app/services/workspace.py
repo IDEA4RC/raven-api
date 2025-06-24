@@ -77,7 +77,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         # Actualizar el workspace
         workspace_update = WorkspaceUpdate(
             data_access=data_access,
-            last_edit=datetime.now(timezone.utc)
+            last_modification_date=datetime.now(timezone.utc)
         )
         updated_workspace = self.update(db, db_obj=workspace, obj_in=workspace_update)
 

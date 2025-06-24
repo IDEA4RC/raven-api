@@ -12,7 +12,7 @@ class WorkspaceBase(BaseModel):
     name: str
     description: Optional[str] = None
     data_access: int  # 2 = Submitted according to diagram
-    last_edit: Optional[datetime] = None
+    last_modification_date: Optional[datetime] = None
 
 
 class WorkspaceCreate(WorkspaceBase):
@@ -25,7 +25,7 @@ class WorkspaceUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     data_access: Optional[int] = None
-    last_edit: Optional[datetime] = None
+    last_modification_date: Optional[datetime] = None
     team_ids: Optional[List[str]] = None
 
 
