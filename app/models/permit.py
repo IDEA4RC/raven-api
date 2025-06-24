@@ -20,7 +20,7 @@ class Permit(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
     status = Column(Integer)  # enum: pending/initiated/submitted/rejected/granted/canceled
     update_date = Column(DateTime(timezone=True), default=func.now())
-    metadata_id = Column(Integer, ForeignKey("metadata.id"), nullable=True)
+    metadata_id = Column(Integer, ForeignKey("metadata_search.id"), nullable=True)
     
     # Relationships
     team = relationship("Team", back_populates="permits")
