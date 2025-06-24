@@ -42,7 +42,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
             action="Created workspace",
             description="Workspace created successfully",
             workspace_id=db_obj.id,
-            user_id=user_id
+            creator_id=user_id
         )
         db.add(workspace_history)
         
@@ -100,7 +100,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
             date=datetime.now(timezone.utc),
             action=action,
             description=description,
-            user_id=user_id,
+            creator_id=user_id,
             workspace_id=workspace_id
         )
         db.add(workspace_history)
