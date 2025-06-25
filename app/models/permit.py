@@ -13,12 +13,12 @@ class Permit(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     permit_name = Column(String, index=True)
-    creation_date = Column(DateTime(timezone=True), server_default=func.current_timestamp())
+    creation_date = Column(DateTime(timezone=True), server_default=func.now())
     expiration_date = Column(DateTime(timezone=True))
     team_ids = Column(ARRAY(String), nullable=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
     status = Column(Integer)  # enum: pending/initiated/submitted/rejected/granted/canceled
-    update_date = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    update_date = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     metadata_id = Column(Integer, ForeignKey("metadata_searches.id"), nullable=True)
     
     # Relationships

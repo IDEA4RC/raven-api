@@ -512,6 +512,8 @@ EOF
 # Configurar red (Gateway + VirtualService)
 deploy_networking() {
     show_step "Configurando red (Gateway + VirtualServices)..."
+
+    kubectl apply -f kubernetes/virtual-service.yaml
     
     cat <<EOF | kubectl apply -f -
 apiVersion: networking.istio.io/v1alpha3
@@ -551,55 +553,6 @@ spec:
     tls:
       mode: SIMPLE
       credentialName: raven-api-tls-secret
----
-# RAVEN API
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: raven-api-vs
-  namespace: default
-spec:
-  hosts:
-  - "${DOMAIN}"
-  - "${IP_ADDRESS}"
-  gateways:
-  - raven-gateway
-  http:
-  - match:
-    - uri:
-        prefix: /
-    route:
-    - destination:
-        host: raven-api.${NAMESPACE}.svc.cluster.local
-        port:
-          number: 80
-  - match:
-    - uri:
-        prefix: /ui
-    rewrite:
-      uri: /
-    route:
-    - destination:
-        host: vantage6server-vantage6-frontend-service.default.svc.cluster.local
-        port:
-          number: 7600
-  - match:
-    - uri:
-        prefix: /server
-    route:
-    - destination:
-        host: vantage6server-vantage6-server-service.default.svc.cluster.local
-        port:
-          number: 7601
-  - match:
-    - uri:
-        prefix: /store
-    route:
-    - destination:
-        host: vantage6store-store-service.default.svc.cluster.local
-        port:
-          number: 80
-
 ---
 # PGAdmin
 apiVersion: networking.istio.io/v1alpha3
