@@ -18,7 +18,7 @@ class PermitCreate(PermitBase):
     workspace_id: int
     permit_name: Optional[str] = None
     expiration_date: Optional[datetime] = None
-    team_ids: Optional[int] = None
+    team_ids: List[str] = None
     
 
 class PermitUpdate(BaseModel):
