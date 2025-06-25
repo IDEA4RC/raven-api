@@ -18,7 +18,7 @@ class PermitCreate(PermitBase):
     workspace_id: int
     permit_name: Optional[str] = None
     expiration_date: Optional[datetime] = None
-    team_ids: List[str] = None
+    team_ids: Optional[List[str]] = None
     
 
 class PermitUpdate(BaseModel):
@@ -33,6 +33,6 @@ class Permit(PermitBase):
     permit_name: Optional[str] = None
     creation_date: Optional[datetime] = None
     expiration_date: Optional[datetime] = None
-    team_ids: Optional[int] = None
+    team_ids: Optional[List[str]] = None
     
     model_config = ConfigDict(from_attributes=True)
