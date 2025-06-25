@@ -118,7 +118,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             date=datetime.now(timezone.utc),
             action=action,
             description=description,
-            user_id=user_id,
+            creator_id=user_id,
             workspace_id=permit.workspace_id
         )
         db.add(workspace_history)
