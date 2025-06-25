@@ -573,6 +573,33 @@ spec:
         host: raven-api.${NAMESPACE}.svc.cluster.local
         port:
           number: 80
+  - match:
+    - uri:
+        prefix: /ui
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: vantage6server-vantage6-frontend-service.default.svc.cluster.local
+        port:
+          number: 7600
+  - match:
+    - uri:
+        prefix: /server
+    route:
+    - destination:
+        host: vantage6server-vantage6-server-service.default.svc.cluster.local
+        port:
+          number: 7601
+  - match:
+    - uri:
+        prefix: /store
+    route:
+    - destination:
+        host: vantage6store-store-service.default.svc.cluster.local
+        port:
+          number: 80
+
 ---
 # PGAdmin
 apiVersion: networking.istio.io/v1alpha3
