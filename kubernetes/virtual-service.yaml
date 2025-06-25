@@ -15,7 +15,7 @@ spec:
         prefix: /
     route:
     - destination:
-        host: raven-api.${NAMESPACE}.svc.cluster.local
+        host: raven-api.raven-api.svc.cluster.local
         port:
           number: 80
   - match:
