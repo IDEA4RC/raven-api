@@ -51,7 +51,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
             status=PermitStatus.PENDING,  # 1 = Pending
             update_date=datetime.now(timezone.utc),
             workspace_id=db_obj.id,
-            team_ids=obj_in.team_ids or [],
+            team_ids=db_obj.team_ids or [],
         )
         db.add(permit)
         
