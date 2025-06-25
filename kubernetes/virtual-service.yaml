@@ -12,7 +12,15 @@ spec:
   http:
   - match:
     - uri:
-        prefix: /
+        prefix: /raven-api
+    route:
+    - destination:
+        host: raven-api.raven-api.svc.cluster.local
+        port:
+          number: 80
+  - match:
+    - uri:
+        prefix: /docs
     route:
     - destination:
         host: raven-api.raven-api.svc.cluster.local
