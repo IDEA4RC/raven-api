@@ -46,6 +46,14 @@ spec:
           number: 7601
   - match:
     - uri:
+        prefix: /socket.io
+    route:
+    - destination:
+        host: vantage6server-vantage6-server-service.default.svc.cluster.local
+        port:
+          number: 7601
+  - match:
+    - uri:
         prefix: /store
     route:
     - destination:
