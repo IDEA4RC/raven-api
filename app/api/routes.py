@@ -22,6 +22,3 @@ api_router.include_router(permit.router, prefix="/permits", tags=["Permits endpo
 
 # Workspace History endpoints
 api_router.include_router(workspace_history.router, prefix="/workspace-history", tags=["Workspace History endpoint"])
-
-# Test Integration endpoints
-api_router.include_router(test_integration.router, prefix="/test-integration", tags=["Test Integration endpoint (just for testing purposes)"])
