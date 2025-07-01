@@ -76,6 +76,6 @@ async def log_requests(request: Request, call_next):
 # Include API routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-@app.get("/")
+@app.get("/raven-api/v1", tags=["Root"])
 async def root():
-    return {"message": "Welcome to the RAVEN API"}
+    return {"message": "Welcome to the RAVEN API v1. For documentation, visit /docs or /redoc."}
