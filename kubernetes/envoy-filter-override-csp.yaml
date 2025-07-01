@@ -4,22 +4,26 @@ metadata:
   name: override-csp-header
   namespace: default
 spec:
-  workloadSelector:
-    labels:
-      istio: ingressgateway
   configPatches:
-  - applyTo: HTTP_ROUTE
+  - applyTo: HTTP_FILTER
     match:
       context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
     patch:
-      operation: MERGE
+      operation: INSERT_BEFORE
       value:
-        response_headers_to_remove:
-        - "content-security-policy"
-        - "Content-Security-Policy"
-        - "CONTENT-SECURITY-POLICY"
-        response_headers_to_add:
-        - header:
-            key: "Content-Security-Policy"
-            value: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';"
-          append: false
+        name: envoy.filters.http.headers
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.headers.v3.HeadersConfig
+          response_headers_to_remove:
+          - "content-security-policy"
+          - "Content-Security-Policy"
+          - "CONTENT-SECURITY-POLICY"
+          response_headers_to_add:
+          - header:
+              key: "Content-Security-Policy"
+              value: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';"
+            append: false
