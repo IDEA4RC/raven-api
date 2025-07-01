@@ -6,10 +6,47 @@ metadata:
 spec:
   hosts:
   - "orchestrator.idea.lst.tfo.upm.es"
+  - "orchestrator.idea.lst.tfo.upm.es:443"
+  - "orchestrator.idea.lst.tfo.upm"
   - "138.4.10.238"
   gateways:
   - raven-gateway
   http:
+  # Manejar peticiones OPTIONS para CORS preflight
+  - match:
+    - uri:
+        prefix: /server
+      method:
+        exact: OPTIONS
+    route:
+    - destination:
+        host: vantage6server-vantage6-server-service.default.svc.cluster.local
+        port:
+          number: 7601
+      headers:
+        response:
+          add:
+            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Max-Age: "86400"
+  - match:
+    - uri:
+        prefix: /socket.io
+      method:
+        exact: OPTIONS
+    route:
+    - destination:
+        host: vantage6server-vantage6-server-service.default.svc.cluster.local
+        port:
+          number: 7601
+      headers:
+        response:
+          add:
+            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Max-Age: "86400"
   - match:
     - uri:
         prefix: /raven-api
