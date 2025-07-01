@@ -23,14 +23,22 @@ spec:
           "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
           inline_code: |
             function envoy_on_response(response_handle)
-              -- Solo aplicar para rutas que van al frontend
+              -- Aplicar a todas las rutas del frontend (no solo específicas)
               local path = response_handle:headers():get(":path")
-              if path and (path == "/" or string.match(path, "^/[^/]*$") or string.match(path, "^/assets/") or string.match(path, "^/static/")) then
-                -- Eliminar cualquier CSP existente
-                response_handle:headers():remove("content-security-policy")
-                response_handle:headers():remove("Content-Security-Policy")
-                
-                -- Añadir nuestra CSP permisiva
-                response_handle:headers():add("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';")
+              
+              -- Eliminar TODAS las variaciones de CSP existentes
+              response_handle:headers():remove("content-security-policy")
+              response_handle:headers():remove("Content-Security-Policy")
+              response_handle:headers():remove("CONTENT-SECURITY-POLICY")
+              
+              -- Forzar eliminación usando un bucle para asegurar que se eliminen todas
+              local headers = response_handle:headers()
+              for k, v in pairs(headers) do
+                if string.lower(k) == "content-security-policy" then
+                  headers:remove(k)
+                end
               end
+              
+              -- Añadir nuestra CSP permisiva solo UNA vez
+              response_handle:headers():add("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';")
             end
