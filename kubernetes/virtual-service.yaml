@@ -58,7 +58,3 @@ spec:
         host: vantage6server-vantage6-frontend-service.default.svc.cluster.local
         port:
           number: 7600
-      headers:
-        response:
-          add:
-            Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; font-src *; style-src * 'unsafe-inline'; frame-src *; connect-src *; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';"

@@ -1,0 +1,36 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: override-csp-header
+  namespace: default
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inline_code: |
+            function envoy_on_response(response_handle)
+              -- Solo aplicar para rutas que van al frontend
+              local path = response_handle:headers():get(":path")
+              if path and (path == "/" or string.match(path, "^/[^/]*$") or string.match(path, "^/assets/") or string.match(path, "^/static/")) then
+                -- Eliminar cualquier CSP existente
+                response_handle:headers():remove("content-security-policy")
+                response_handle:headers():remove("Content-Security-Policy")
+                
+                -- Añadir nuestra CSP permisiva
+                response_handle:headers():add("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';")
+              end
+            end
