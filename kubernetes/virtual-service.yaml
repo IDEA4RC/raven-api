@@ -59,9 +59,6 @@ spec:
         port:
           number: 7600
       headers:
-        request:
-          add:
-            Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
         response:
           add:
-            Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+            Content-Security-Policy: "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' https://auth.vantage6.ai:8443; connect-src 'self' https://auth.vantage6.ai:8443;"
