@@ -28,9 +28,7 @@ spec:
           number: 80
   - match:
     - uri:
-        prefix: /ui
-    rewrite:
-      uri: /
+        prefix: /
     route:
     - destination:
         host: vantage6server-vantage6-frontend-service.default.svc.cluster.local
