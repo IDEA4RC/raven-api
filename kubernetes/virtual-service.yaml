@@ -28,14 +28,6 @@ spec:
           number: 80
   - match:
     - uri:
-        prefix: /
-    route:
-    - destination:
-        host: vantage6server-vantage6-frontend-service.default.svc.cluster.local
-        port:
-          number: 7600
-  - match:
-    - uri:
         prefix: /server
     route:
     - destination:
@@ -58,3 +50,11 @@ spec:
         host: vantage6store-store-service.default.svc.cluster.local
         port:
           number: 80
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: vantage6server-vantage6-frontend-service.default.svc.cluster.local
+        port:
+          number: 7600
