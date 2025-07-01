@@ -26,9 +26,10 @@ spec:
           remove:
           - "Access-Control-Allow-Origin"
           add:
-            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials: "true"
             Access-Control-Max-Age: "86400"
   - match:
     - uri:
@@ -45,9 +46,10 @@ spec:
           remove:
           - "Access-Control-Allow-Origin"
           add:
-            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials: "true"
             Access-Control-Max-Age: "86400"
   - match:
     - uri:
@@ -78,9 +80,10 @@ spec:
           remove:
           - "Access-Control-Allow-Origin"
           add:
-            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials: "true"
   - match:
     - uri:
         prefix: /socket.io
@@ -94,9 +97,10 @@ spec:
           remove:
           - "Access-Control-Allow-Origin"
           add:
-            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials: "true"
   - match:
     - uri:
         prefix: /store
