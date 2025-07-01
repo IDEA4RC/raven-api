@@ -34,6 +34,12 @@ spec:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
         port:
           number: 7601
+      headers:
+        response:
+          add:
+            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
   - match:
     - uri:
         prefix: /socket.io
@@ -42,6 +48,12 @@ spec:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
         port:
           number: 7601
+      headers:
+        response:
+          add:
+            Access-Control-Allow-Origin: "*"
+            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
   - match:
     - uri:
         prefix: /store
