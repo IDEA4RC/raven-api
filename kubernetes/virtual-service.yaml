@@ -61,4 +61,4 @@ spec:
       headers:
         response:
           add:
-            Content-Security-Policy: "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' https://auth.vantage6.ai:8443; connect-src 'self' https://auth.vantage6.ai:8443;"
+            Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; font-src *; style-src * 'unsafe-inline'; frame-src *; connect-src *; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';"
