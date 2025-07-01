@@ -59,6 +59,9 @@ spec:
         port:
           number: 7600
       headers:
+        request:
+          add:
+            Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
         response:
           add:
             Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
