@@ -23,6 +23,8 @@ spec:
           number: 7601
       headers:
         response:
+          remove:
+          - "Access-Control-Allow-Origin"
           add:
             Access-Control-Allow-Origin: "*"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
@@ -40,6 +42,8 @@ spec:
           number: 7601
       headers:
         response:
+          remove:
+          - "Access-Control-Allow-Origin"
           add:
             Access-Control-Allow-Origin: "*"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
@@ -71,6 +75,8 @@ spec:
           number: 7601
       headers:
         response:
+          remove:
+          - "Access-Control-Allow-Origin"
           add:
             Access-Control-Allow-Origin: "*"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
@@ -85,6 +91,8 @@ spec:
           number: 7601
       headers:
         response:
+          remove:
+          - "Access-Control-Allow-Origin"
           add:
             Access-Control-Allow-Origin: "*"
             Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
