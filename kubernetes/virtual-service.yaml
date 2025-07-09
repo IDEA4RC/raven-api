@@ -32,6 +32,14 @@ spec:
         host: jaeger-service.monitoring.svc.cluster.local
         port:
           number: 16686
+  - match:
+    - uri:
+        prefix: /static
+    route:
+    - destination:
+        host: jaeger-service.monitoring.svc.cluster.local
+        port:
+          number: 16686
   # Prometheus
   - match:
     - uri:
