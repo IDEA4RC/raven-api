@@ -40,6 +40,18 @@ spec:
         host: jaeger-service.monitoring.svc.cluster.local
         port:
           number: 16686
+  - match:
+    - uri:
+        prefix: /jaeger/api
+    route:
+    - destination:
+        host: jaeger-service.monitoring.svc.cluster.local
+        port:
+          number: 16686
+      headers:
+        request:
+          set:
+            X-Forwarded-Prefix: "/jaeger"
   # Prometheus
   - match:
     - uri:
