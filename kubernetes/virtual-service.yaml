@@ -10,47 +10,6 @@ spec:
   gateways:
   - raven-gateway
   http:
-  # Manejar peticiones OPTIONS para CORS preflight
-  - match:
-    - uri:
-        prefix: /server
-      method:
-        exact: OPTIONS
-    route:
-    - destination:
-        host: vantage6server-vantage6-server-service.default.svc.cluster.local
-        port:
-          number: 7601
-      headers:
-        response:
-          remove:
-          - "Access-Control-Allow-Origin"
-          add:
-            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
-            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
-            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
-            Access-Control-Allow-Credentials: "true"
-            Access-Control-Max-Age: "86400"
-  - match:
-    - uri:
-        prefix: /socket.io
-      method:
-        exact: OPTIONS
-    route:
-    - destination:
-        host: vantage6server-vantage6-server-service.default.svc.cluster.local
-        port:
-          number: 7601
-      headers:
-        response:
-          remove:
-          - "Access-Control-Allow-Origin"
-          add:
-            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
-            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
-            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
-            Access-Control-Allow-Credentials: "true"
-            Access-Control-Max-Age: "86400"
   - match:
     - uri:
         prefix: /raven-api
@@ -75,15 +34,6 @@ spec:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
         port:
           number: 7601
-      headers:
-        response:
-          remove:
-          - "Access-Control-Allow-Origin"
-          add:
-            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
-            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
-            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
-            Access-Control-Allow-Credentials: "true"
   - match:
     - uri:
         prefix: /socket.io
@@ -92,15 +42,6 @@ spec:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
         port:
           number: 7601
-      headers:
-        response:
-          remove:
-          - "Access-Control-Allow-Origin"
-          add:
-            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
-            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
-            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
-            Access-Control-Allow-Credentials: "true"
   - match:
     - uri:
         prefix: /store
