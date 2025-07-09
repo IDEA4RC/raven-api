@@ -10,6 +10,54 @@ spec:
   gateways:
   - raven-gateway
   http:
+  # PGAdmin
+  - match:
+    - uri:
+        prefix: /pgadmin
+    route:
+    - destination:
+        host: pgadmin-service.raven-api.svc.cluster.local
+        port:
+          number: 80
+      headers:
+        request:
+          set:
+            X-Script-Name: "/pgadmin"
+  # Jaeger
+  - match:
+    - uri:
+        prefix: /jaeger
+    route:
+    - destination:
+        host: jaeger-service.monitoring.svc.cluster.local
+        port:
+          number: 16686
+  # Prometheus
+  - match:
+    - uri:
+        prefix: /prometheus
+    route:
+    - destination:
+        host: prometheus-service.monitoring.svc.cluster.local
+        port:
+          number: 9090
+      headers:
+        request:
+          set:
+            X-Forwarded-Prefix: "/prometheus"
+  # Grafana
+  - match:
+    - uri:
+        prefix: /grafana
+    route:
+    - destination:
+        host: grafana-service.monitoring.svc.cluster.local
+        port:
+          number: 3000
+      headers:
+        request:
+          set:
+            X-Forwarded-Prefix: "/grafana"
   - match:
     - uri:
         prefix: /raven-api
@@ -34,6 +82,15 @@ spec:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
         port:
           number: 7601
+      headers:
+        response:
+          remove:
+          - "Access-Control-Allow-Origin"
+          add:
+            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
+            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials: "true"
   - match:
     - uri:
         prefix: /socket.io
@@ -42,6 +99,15 @@ spec:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
         port:
           number: 7601
+      headers:
+        response:
+          remove:
+          - "Access-Control-Allow-Origin"
+          add:
+            Access-Control-Allow-Origin: "https://idea4rc.kube.franky.codes"
+            Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+            Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials: "true"
   - match:
     - uri:
         prefix: /store

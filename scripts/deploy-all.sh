@@ -22,7 +22,12 @@ IP_ADDRESS="138.4.10.238"
 echo -e "${CYAN}🚀 Despliegue RAVEN API con HTTPS + PGAdmin + Observabilidad${NC}"
 echo -e "${CYAN}=========================================================${NC}"
 echo ""
-# Función para mostrar progreso
+# Func    echo -e "${GREEN}🌐 URLs disponibles:${NC}"
+    echo -e "   Frontend/API: https://${DOMAIN}"
+    echo -e "   PGAdmin:      https://${DOMAIN}/pgadmin"
+    echo -e "   Jaeger:       https://${DOMAIN}/jaeger"
+    echo -e "   Prometheus:   https://${DOMAIN}/prometheus"
+    echo -e "   Grafana:      https://${DOMAIN}/grafana"ra mostrar progreso
 show_step() {
     echo -e "${BLUE}📋 $1${NC}"
 }
@@ -124,10 +129,6 @@ spec:
     group: cert-manager.io
   dnsNames:
   - ${DOMAIN}
-  - pgadmin.${DOMAIN}
-  - jaeger.${DOMAIN}
-  - prometheus.${DOMAIN}
-  - grafana.${DOMAIN}
   duration: 2160h  # 90 días
   renewBefore: 360h  # Renovar 15 días antes
   usages:
@@ -511,133 +512,13 @@ EOF
 
 # Configurar red (Gateway + VirtualService)
 deploy_networking() {
-    show_step "Configurando red (Gateway + VirtualServices)..."
+    show_step "Configurando red (Gateway + VirtualService)..."
 
-    kubectl apply -f kubernetes/virtual-service.yaml
+    # Aplicar Gateway desde archivo
+    kubectl apply -f kubernetes/gateway.yaml
     
-    cat <<EOF | kubectl apply -f -
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: raven-gateway
-  namespace: default
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  # HTTP - redirige a HTTPS
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "${DOMAIN}"
-    - "pgadmin.${DOMAIN}"
-    - "jaeger.${DOMAIN}"
-    - "prometheus.${DOMAIN}"
-    - "grafana.${DOMAIN}"
-    - "${IP_ADDRESS}"
-    tls:
-      httpsRedirect: true
-  # HTTPS - certificado válido
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    hosts:
-    - "${DOMAIN}"
-    - "pgadmin.${DOMAIN}"
-    - "jaeger.${DOMAIN}"
-    - "prometheus.${DOMAIN}"
-    - "grafana.${DOMAIN}"
-    tls:
-      mode: SIMPLE
-      credentialName: raven-api-tls-secret
----
-# PGAdmin
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: pgadmin-vs
-  namespace: default
-spec:
-  hosts:
-  - "pgadmin.${DOMAIN}"
-  gateways:
-  - raven-gateway
-  http:
-  - match:
-    - uri:
-        prefix: /
-    route:
-    - destination:
-        host: pgadmin-service.${NAMESPACE}.svc.cluster.local
-        port:
-          number: 80
----
-# Jaeger
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: jaeger-vs
-  namespace: default
-spec:
-  hosts:
-  - "jaeger.${DOMAIN}"
-  gateways:
-  - raven-gateway
-  http:
-  - match:
-    - uri:
-        prefix: /
-    route:
-    - destination:
-        host: jaeger-service.${MONITORING_NAMESPACE}.svc.cluster.local
-        port:
-          number: 16686
----
-# Prometheus
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: prometheus-vs
-  namespace: default
-spec:
-  hosts:
-  - "prometheus.${DOMAIN}"
-  gateways:
-  - raven-gateway
-  http:
-  - match:
-    - uri:
-        prefix: /
-    route:
-    - destination:
-        host: prometheus-service.${MONITORING_NAMESPACE}.svc.cluster.local
-        port:
-          number: 9090
----
-# Grafana
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: grafana-vs
-  namespace: default
-spec:
-  hosts:
-  - "grafana.${DOMAIN}"
-  gateways:
-  - raven-gateway
-  http:
-  - match:
-    - uri:
-        prefix: /
-    route:
-    - destination:
-        host: grafana-service.${MONITORING_NAMESPACE}.svc.cluster.local
-        port:
-          number: 3000
-EOF
+    # Aplicar VirtualService desde archivo
+    kubectl apply -f kubernetes/virtual-service.yaml
 
     show_success "Red configurada"
 }
@@ -765,7 +646,7 @@ main() {
             kubectl delete namespace ${NAMESPACE} --ignore-not-found=true
             kubectl delete namespace ${MONITORING_NAMESPACE} --ignore-not-found=true
             kubectl delete gateway raven-gateway --ignore-not-found=true
-            kubectl delete virtualservice raven-api-vs pgadmin-vs jaeger-vs prometheus-vs grafana-vs --ignore-not-found=true
+            kubectl delete virtualservice raven-api-vs --ignore-not-found=true
             kubectl delete certificate raven-api-tls -n istio-system --ignore-not-found=true
             kubectl delete clusterissuer letsencrypt-prod --ignore-not-found=true
             show_success "Recursos limpiados"
