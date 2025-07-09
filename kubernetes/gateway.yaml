@@ -14,10 +14,6 @@ spec:
       protocol: HTTP
     hosts:
     - "orchestrator.idea.lst.tfo.upm.es"
-    - "pgadmin.orchestrator.idea.lst.tfo.upm.es"
-    - "jaeger.orchestrator.idea.lst.tfo.upm.es"
-    - "prometheus.orchestrator.idea.lst.tfo.upm.es"
-    - "grafana.orchestrator.idea.lst.tfo.upm.es"
     - "138.4.10.238"
     tls:
       httpsRedirect: true
@@ -28,10 +24,6 @@ spec:
       protocol: HTTPS
     hosts:
     - "orchestrator.idea.lst.tfo.upm.es"
-    - "pgadmin.orchestrator.idea.lst.tfo.upm.es"
-    - "jaeger.orchestrator.idea.lst.tfo.upm.es"
-    - "prometheus.orchestrator.idea.lst.tfo.upm.es"
-    - "grafana.orchestrator.idea.lst.tfo.upm.es"
     tls:
       mode: SIMPLE
       credentialName: raven-api-tls-secret
