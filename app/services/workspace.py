@@ -40,6 +40,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action="Created workspace",
+            phase="Workspace History",
             description="Workspace created successfully",
             workspace_id=db_obj.id,
             creator_id=user_id
@@ -48,12 +49,23 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         
         # Crear registro de permiso inicial (estado pendiente)
         permit = Permit(
-            status=PermitStatus.PENDING,  # 1 = Pending
+            status=PermitStatus.PENDING,  # 0 = Pending
             update_date=datetime.now(timezone.utc),
             workspace_id=db_obj.id,
             team_ids=db_obj.team_ids or [],
         )
         db.add(permit)
+        
+        permit_workspace_history = WorkspaceHistory(
+            date=datetime.now(timezone.utc),
+            action="Initial permit created",
+            phase="Data Permit",
+            description="Initial permit created with status Pending",
+            user_id=user_id,
+            workspace_id=db_obj.id
+        )
+        db.add(permit_workspace_history)
+
         
         db.commit()
         db.refresh(db_obj)
@@ -88,7 +100,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         if data_access == DataAccessStatus.SUBMITTED:
             action = "Submitted data access"
             description = "The data access request has been submitted"
-        elif data_access == DataAccessStatus.APPROVED:
+        elif data_access == DataAccessStatus.GRANTED:
             action = "Data access approved"
             description = "The data access request has been approved"
         elif data_access == DataAccessStatus.REJECTED:
@@ -100,6 +112,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action=action,
+            phase="Data Access",
             description=description,
             creator_id=user_id,
             workspace_id=workspace_id

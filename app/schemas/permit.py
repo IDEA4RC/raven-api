@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 
 class PermitBase(BaseModel):
     """Schema base para permisos."""
-    status: int  # 1=Pending, 2=Submitted, 3=Approved, 4=Rejected, etc.
+    status: int  # 0=Pending, 1=Iniciado, 2=Enviado, 3=Rechazado, 4=Concedido, 5=Expirado
     update_date: Optional[datetime] = None
 
 

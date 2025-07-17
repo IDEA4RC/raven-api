@@ -17,7 +17,7 @@ class Permit(Base):
     expiration_date = Column(DateTime(timezone=True))
     team_ids = Column(ARRAY(String), nullable=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
-    status = Column(Integer)  # enum: pending/initiated/submitted/rejected/granted/canceled
+    status = Column(Integer)  # enum: pending/iniciado/enviado/rechazado/concedido/expirado
     update_date = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     metadata_id = Column(Integer, ForeignKey("metadata_searches.id"), nullable=True)
     

@@ -15,6 +15,7 @@ class WorkspaceHistory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(DateTime(timezone=True), default=func.now())
+    phase = Column(String, nullable=False)
     action = Column(String)
     description = Column(String)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))

@@ -51,7 +51,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         
         # Crear historial
         action = f"Permit created with status {db_obj.status}"
-        if db_obj.status == 2:
+        if db_obj.status == PermitStatus.SUBMITTED:
             action = "Submitted data access application"
             description = "The data permit application has been submitted"
         else:
@@ -60,6 +60,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action=action,
+            phase="Data Permit",
             description=description,
             user_id=user_id,
             workspace_id=obj_in.workspace_id
@@ -76,7 +77,8 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         *,
         permit_id: int,
         status: int,
-        user_id: int
+        user_id: int,
+        phase: str
     ) -> Permit:
         """
         Update the status of a permit and log the change in workspace and workspace history
@@ -105,18 +107,25 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         if status == PermitStatus.SUBMITTED:
             action = "Submitted data access application"
             description = "The data permit application has been submitted"
-        elif status == PermitStatus.APPROVED:
+        elif status == PermitStatus.INICIATED:
+            action = "Data access application initiated"
+            description = "The data permit application has been initiated"
+        elif status == PermitStatus.GRANTED:
             action = "Data access application approved"
             description = "The data permit application has been approved"
         elif status == PermitStatus.REJECTED:
             action = "Data access application rejected"
             description = "The data permit application has been rejected"
+        elif status == PermitStatus.EXPIRED:
+            action = "Data access permit expired"
+            description = "The data permit has expired"
         else:
             description = f"The permit status has been changed to {status}"
 
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action=action,
+            phase="Data Permit",
             description=description,
             creator_id=user_id,
             workspace_id=permit.workspace_id
@@ -133,7 +142,8 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         *,
         permit_id: int,
         obj_in: PermitUpdate,
-        user_id: int
+        user_id: int,
+        phase: str
     ) -> Permit:
         """
         Update a permit and log the change in workspace history
@@ -164,17 +174,24 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             if obj_in.status == PermitStatus.SUBMITTED:
                 action = "Submitted data access application"
                 description = "The data permit application has been submitted"
-            elif obj_in.status == PermitStatus.APPROVED:
+            elif obj_in.status == PermitStatus.INICIATED:
+                action = "Data access application initiated"
+                description = "The data permit application has been initiated"
+            elif obj_in.status == PermitStatus.GRANTED:
                 action = "Data access application approved"
                 description = "The data permit application has been approved"
             elif obj_in.status == PermitStatus.REJECTED:
                 action = "Data access application rejected"
                 description = "The data permit application has been rejected"
+            elif obj_in.status == PermitStatus.EXPIRED:
+                action = "Data access permit expired"
+                description = "The data permit has expired"
             else:
                 description = f"The permit status has been changed from {old_status} to {obj_in.status}"
 
             workspace_history = WorkspaceHistory(
                 date=datetime.now(timezone.utc),
+                phase="Data Permit",
                 action=action,
                 description=description,
                 user_id=user_id,
@@ -191,7 +208,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         db: Session,
         *,
         permit_id: int,
-        user_id: int
+        user_id: int,
     ) -> Permit:
         """
         Delete a permit and log the change in workspace history
@@ -212,6 +229,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action=f"Permit deleted (was status {permit_status})",
+            phase="Data Permit",
             description=f"A permit with status {permit_status} has been deleted",
             user_id=user_id,
             workspace_id=workspace_id

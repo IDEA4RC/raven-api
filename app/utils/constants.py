@@ -10,8 +10,9 @@ class PermitStatus(int, Enum):
     PENDING = 0
     INICIATED = 1
     SUBMITTED = 2
-    APPROVED = 3
-    REJECTED = 4
+    REJECTED = 3
+    GRANTED = 4
+    EXPIRED = 5
 
 
 class DataAccessStatus(int, Enum):
@@ -19,5 +20,5 @@ class DataAccessStatus(int, Enum):
     PENDING = 0
     INICIATED = 1
     SUBMITTED = 2
-    APPROVED = 3
+    GRANTED = 3
     REJECTED = 4

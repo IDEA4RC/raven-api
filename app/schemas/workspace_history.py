@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, ConfigDict
 class WorkspaceHistoryBase(BaseModel):
     """Schema base para historial de espacios de trabajo."""
     date: datetime = None
+    phase: str
     action: str
     description: Optional[str] = None
 
