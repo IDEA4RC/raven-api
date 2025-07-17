@@ -89,7 +89,7 @@ def create_vantage_user(
             firstname=user_data.get("first_name"),
             lastname=user_data.get("last_name"),
             organization=user_data.get("organization_id"),
-            roles=[6],
+            roles=[6],  
         )
         return user
     except Exception as e:
