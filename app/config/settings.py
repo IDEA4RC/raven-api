@@ -14,16 +14,27 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/raven-api/v1"
     ENVIRONMENT: str = "development"
     
-    BACKEND_CORS_ORIGINS: List[str] = []
+    # CORS origins as string, will be converted to list
+    BACKEND_CORS_ORIGINS: str = ""
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @field_validator("BACKEND_CORS_ORIGINS", mode="after")
     @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    def assemble_cors_origins(cls, v: str) -> List[str]:
+        """Convert CORS origins string to list"""
+        if not v:
+            return []
+        
+        # Handle comma-separated values
+        if "," in v:
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        
+        # Handle single value
+        return [v.strip()] if v.strip() else []
+
+    @property
+    def cors_origins(self) -> List[str]:
+        """Get CORS origins as a list"""
+        return self.BACKEND_CORS_ORIGINS
     
     # Database
     DATABASE_URI: str = "postgresql://raven_user:raven_password@localhost:5432/raven_db"
