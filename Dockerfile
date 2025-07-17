@@ -19,9 +19,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy application code
 COPY . .
 
-# Make the entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
-
 # Expose the port on which the application runs
 EXPOSE 8000
 
