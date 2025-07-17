@@ -77,7 +77,7 @@ def update_permit(
     """
     try:
         permit = permit_service.update_with_history(
-            db=db, permit_id=permit_id, obj_in=permit_in, user_id=current_user.id
+            db=db, permit_id=permit_id, obj_in=permit_in, user_id=current_user.id, phase="Data Permit"
         )
         return permit
     except ValueError as e:
@@ -160,7 +160,31 @@ def update_permit_status(
     
     try:
         permit = permit_service.update_permit_status(
-            db=db, permit_id=permit_id, status=permit_update.status, user_id=current_user.id
+            db=db, permit_id=permit_id, status=permit_update.status, user_id=current_user.id, phase="Data Permit"
+        )
+        return permit
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.patch("/{permit_id}", response_model=schemas.Permit)
+def patch_permit(
+    *,
+    db: Session = Depends(get_db),
+    permit_id: int,
+    permit_update: schemas.PermitUpdate,
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Updates specific fields of a permit (PATCH operation).
+    Can update any combination of: status, permit_name, expiration_date, team_ids.
+    """
+    try:
+        permit = permit_service.update_with_history(
+            db=db, permit_id=permit_id, obj_in=permit_update, user_id=current_user.id, phase="Data Permit"
         )
         return permit
     except ValueError as e:

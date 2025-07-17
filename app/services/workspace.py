@@ -106,6 +106,12 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         elif data_access == DataAccessStatus.REJECTED:
             action = "Data access rejected"
             description = "The data access request has been rejected"
+        elif data_access == DataAccessStatus.EXPIRED:
+            action = "Data access expired"
+            description = "The data access request has expired"
+        elif data_access == DataAccessStatus.INICIATED:
+            action = "Data access initiated"
+            description = "The data access request has been initiated"
         else:
             description = f"Data access status has been changed to {data_access}"
 

@@ -23,7 +23,11 @@ class PermitCreate(PermitBase):
 
 class PermitUpdate(BaseModel):
     """Schema para actualizar un permiso."""
-    status: int = None
+    status: Optional[int] = None
+    permit_name: Optional[str] = None
+    expiration_date: Optional[datetime] = None
+    team_ids: Optional[List[str]] = None
+    update_date: Optional[datetime] = None
 
 
 class Permit(PermitBase):

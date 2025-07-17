@@ -143,7 +143,6 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         permit_id: int,
         obj_in: PermitUpdate,
         user_id: int,
-        phase: str
     ) -> Permit:
         """
         Update a permit and log the change in workspace history
@@ -155,11 +154,25 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
 
         # Store old values for history
         old_status = permit.status
+        old_permit_name = permit.permit_name
+        old_expiration_date = permit.expiration_date
+        old_team_ids = permit.team_ids
         
         # Update the permit
         if obj_in.update_date is None:
             obj_in.update_date = datetime.now(timezone.utc)
         updated_permit = self.update(db, db_obj=permit, obj_in=obj_in)
+
+        # Track what changed for history
+        changes = []
+        if obj_in.status is not None and obj_in.status != old_status:
+            changes.append(f"status from {old_status} to {obj_in.status}")
+        if obj_in.permit_name is not None and obj_in.permit_name != old_permit_name:
+            changes.append(f"permit name")
+        if obj_in.expiration_date is not None and obj_in.expiration_date != old_expiration_date:
+            changes.append(f"expiration date")
+        if obj_in.team_ids is not None and obj_in.team_ids != old_team_ids:
+            changes.append(f"team assignments")
 
         # Update the workspace if status changed
         if obj_in.status is not None and obj_in.status != old_status:
@@ -169,25 +182,39 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
                 workspace.last_modification_date = datetime.now(timezone.utc)
                 db.add(workspace)
 
-            # Crear historial de workspace solo si el status cambió
-            action = f"Permit status updated from {old_status} to {obj_in.status}"
-            if obj_in.status == PermitStatus.SUBMITTED:
-                action = "Submitted data access application"
-                description = "The data permit application has been submitted"
-            elif obj_in.status == PermitStatus.INICIATED:
-                action = "Data access application initiated"
-                description = "The data permit application has been initiated"
-            elif obj_in.status == PermitStatus.GRANTED:
-                action = "Data access application approved"
-                description = "The data permit application has been approved"
-            elif obj_in.status == PermitStatus.REJECTED:
-                action = "Data access application rejected"
-                description = "The data permit application has been rejected"
-            elif obj_in.status == PermitStatus.EXPIRED:
-                action = "Data access permit expired"
-                description = "The data permit has expired"
+        # Create workspace history if there were changes
+        if changes:
+            # Determine action based on changes
+            if obj_in.status is not None and obj_in.status != old_status:
+                # Status change takes priority for action description
+                action = f"Permit status updated from {old_status} to {obj_in.status}"
+                if obj_in.status == PermitStatus.SUBMITTED:
+                    action = "Submitted data access application"
+                    description = "The data permit application has been submitted"
+                elif obj_in.status == PermitStatus.INICIATED:
+                    action = "Data access application initiated"
+                    description = "The data permit application has been initiated"
+                elif obj_in.status == PermitStatus.GRANTED:
+                    action = "Data access application approved"
+                    description = "The data permit application has been approved"
+                elif obj_in.status == PermitStatus.REJECTED:
+                    action = "Data access application rejected"
+                    description = "The data permit application has been rejected"
+                elif obj_in.status == PermitStatus.EXPIRED:
+                    action = "Data access permit expired"
+                    description = "The data permit has expired"
+                else:
+                    description = f"The permit status has been changed from {old_status} to {obj_in.status}"
+                
+                # Add other changes to description if they exist
+                if len(changes) > 1:
+                    other_changes = [c for c in changes if not c.startswith("status")]
+                    if other_changes:
+                        description += f". Also updated: {', '.join(other_changes)}"
             else:
-                description = f"The permit status has been changed from {old_status} to {obj_in.status}"
+                # Only non-status changes
+                action = f"Permit updated"
+                description = f"Updated permit fields: {', '.join(changes)}"
 
             workspace_history = WorkspaceHistory(
                 date=datetime.now(timezone.utc),

@@ -22,3 +22,4 @@ class DataAccessStatus(int, Enum):
     SUBMITTED = 2
     GRANTED = 3
     REJECTED = 4
+    EXPIRED = 5
