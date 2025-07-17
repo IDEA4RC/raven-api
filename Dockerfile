@@ -25,8 +25,5 @@ RUN chmod +x /app/docker-entrypoint.sh
 # Expose the port on which the application runs
 EXPOSE 8000
 
-# Use the entrypoint script to run migrations before starting the application
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
-
 # Command to run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
