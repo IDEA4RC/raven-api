@@ -49,5 +49,4 @@ class Workspace(WorkspaceBase):
     
     class Config:
         """Configuration for the schema."""
-        orm_mode = True
         from_attributes = True

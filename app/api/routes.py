@@ -4,7 +4,7 @@ Main configuration of API routes
 
 from fastapi import APIRouter
 
-from app.api.endpoints import health, workspace, permit, workspace_history, test_integration, auth
+from app.api.endpoints import health, workspace, permit, workspace_history, auth
 
 api_router = APIRouter()
 
