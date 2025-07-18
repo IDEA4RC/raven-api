@@ -27,7 +27,8 @@ app = FastAPI(
     version=settings.VERSION,
     description="API for the RAVEN platform",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False  # Deshabilitar redirección automática de barras
 )
 
 # MODO PRUEBAS: Autenticación desactivada temporalmente
@@ -57,6 +58,15 @@ if settings.BACKEND_CORS_ORIGINS:
 # Middleware for structured logging
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    # Validar que no haya barras adicionales al final (excepto la ruta raíz)
+    if request.url.path != "/" and request.url.path.endswith("/"):
+        from fastapi import HTTPException
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "URL cannot end with trailing slash"}
+        )
+    
     response = await call_next(request)
     
     # Log in JSON format for easier processing
