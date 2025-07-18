@@ -4,7 +4,7 @@ Schema de permisos para validación de datos y serialización
 
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class PermitBase(BaseModel):
@@ -20,6 +20,16 @@ class PermitCreate(PermitBase):
     expiration_date: Optional[datetime] = None
     team_ids: Optional[List[str]] = None
     
+    @field_validator("team_ids")
+    @classmethod
+    def clean_team_ids(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Limpiar team_ids removiendo valores inválidos."""
+        if v is None:
+            return None
+        # Filtrar valores que no sean "string" literal y que no estén vacíos
+        cleaned = [team_id for team_id in v if team_id and team_id.strip() != "string"]
+        return cleaned if cleaned else None
+    
 
 class PermitUpdate(BaseModel):
     """Schema para actualizar un permiso."""
@@ -28,6 +38,16 @@ class PermitUpdate(BaseModel):
     expiration_date: Optional[datetime] = None
     team_ids: Optional[List[str]] = None
     update_date: Optional[datetime] = None
+    
+    @field_validator("team_ids")
+    @classmethod
+    def clean_team_ids(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Limpiar team_ids removiendo valores inválidos."""
+        if v is None:
+            return None
+        # Filtrar valores que no sean "string" literal y que no estén vacíos
+        cleaned = [team_id for team_id in v if team_id and team_id.strip() != "string"]
+        return cleaned if cleaned else None
 
 
 class Permit(PermitBase):
