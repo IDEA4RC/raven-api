@@ -6,6 +6,7 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import any_
 
 from app import schemas
 from app.api.deps import get_current_user, get_db
@@ -138,7 +139,7 @@ def get_permits_by_team(
     Obtains all permits for a team.
     """
     permits = db.query(Permit)\
-        .filter(Permit.team_ids.contains([team_id]))\
+        .filter(team_id == any_(Permit.team_ids))\
         .all()
     return permits
 
