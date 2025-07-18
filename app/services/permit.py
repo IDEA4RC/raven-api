@@ -159,9 +159,8 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         old_team_ids = permit.team_ids
         old_coes_granted = permit.coes_granted
         
-        # Handle user_team_ids -> team_ids mapping
-        if obj_in.user_team_ids is not None:
-            obj_in.team_ids = obj_in.user_team_ids
+        if obj_in.team_ids is not None:
+            obj_in.team_ids = obj_in.team_ids
         
         # Validate coes_granted - only allow if status is GRANTED
         if obj_in.coes_granted is not None:
