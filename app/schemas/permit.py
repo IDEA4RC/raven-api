@@ -26,8 +26,10 @@ class PermitUpdate(BaseModel):
     status: Optional[int] = None
     permit_name: Optional[str] = None
     expiration_date: Optional[datetime] = None
+    team_ids: Optional[List[str]] = None
     user_team_ids: Optional[List[str]] = None  # This will update team_ids
     coes_granted: Optional[List[str]] = None  # Only available when status is Granted
+    update_date: Optional[datetime] = None
 
 
 class Permit(PermitBase):

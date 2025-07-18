@@ -162,10 +162,6 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         # Handle user_team_ids -> team_ids mapping
         if obj_in.user_team_ids is not None:
             obj_in.team_ids = obj_in.user_team_ids
-            # Remove user_team_ids from the update object to avoid passing it to the base service
-            obj_in_dict = obj_in.dict(exclude_unset=True)
-            obj_in_dict.pop('user_team_ids', None)
-            obj_in = PermitUpdate(**obj_in_dict)
         
         # Validate coes_granted - only allow if status is GRANTED
         if obj_in.coes_granted is not None:
