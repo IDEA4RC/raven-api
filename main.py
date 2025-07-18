@@ -27,8 +27,7 @@ app = FastAPI(
     version=settings.VERSION,
     description="API for the RAVEN platform",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan,
-    redirect_slashes=False  # Deshabilitar redirección automática de barras
+    lifespan=lifespan
 )
 
 # MODO PRUEBAS: Autenticación desactivada temporalmente
