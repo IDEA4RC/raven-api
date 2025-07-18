@@ -20,6 +20,7 @@ class Permit(Base):
     status = Column(Integer)  # enum: pending/iniciado/enviado/rechazado/concedido/expirado
     update_date = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     metadata_id = Column(Integer, ForeignKey("metadata_searches.id"), nullable=True)
+    coes_granted = Column(ARRAY(String), nullable=True)  # Array of COEs granted when status is Granted
     
     # Relationships
     # team = relationship("Team", back_populates="permits")  # Removed: using team_ids array instead

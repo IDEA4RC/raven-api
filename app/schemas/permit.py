@@ -27,6 +27,8 @@ class PermitUpdate(BaseModel):
     permit_name: Optional[str] = None
     expiration_date: Optional[datetime] = None
     team_ids: Optional[List[str]] = None
+    user_team_ids: Optional[List[str]] = None  # This will update team_ids
+    coes_granted: Optional[List[str]] = None  # Only available when status is Granted
     update_date: Optional[datetime] = None
 
 
@@ -38,5 +40,6 @@ class Permit(PermitBase):
     creation_date: Optional[datetime] = None
     expiration_date: Optional[datetime] = None
     team_ids: Optional[List[str]] = None
+    coes_granted: Optional[List[str]] = None
     
     model_config = ConfigDict(from_attributes=True)

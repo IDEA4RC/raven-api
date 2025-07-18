@@ -74,6 +74,8 @@ def update_permit(
 ) -> Any:
     """
     Updates a permit (PATCH operation).
+    Can update any combination of: status, permit_name, expiration_date, user_team_ids, coes_granted.
+    Note: user_team_ids will update the team_ids field. coes_granted can only be set when status is GRANTED.
     """
     try:
         permit = permit_service.update_with_history(

@@ -157,6 +157,22 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         old_permit_name = permit.permit_name
         old_expiration_date = permit.expiration_date
         old_team_ids = permit.team_ids
+        old_coes_granted = permit.coes_granted
+        
+        # Handle user_team_ids -> team_ids mapping
+        if obj_in.user_team_ids is not None:
+            obj_in.team_ids = obj_in.user_team_ids
+            # Remove user_team_ids from the update object to avoid passing it to the base service
+            obj_in_dict = obj_in.dict(exclude_unset=True)
+            obj_in_dict.pop('user_team_ids', None)
+            obj_in = PermitUpdate(**obj_in_dict)
+        
+        # Validate coes_granted - only allow if status is GRANTED
+        if obj_in.coes_granted is not None:
+            if obj_in.status is not None and obj_in.status != PermitStatus.GRANTED:
+                raise ValueError("coes_granted can only be set when status is GRANTED")
+            elif obj_in.status is None and permit.status != PermitStatus.GRANTED:
+                raise ValueError("coes_granted can only be set when status is GRANTED")
         
         # Update the permit
         if obj_in.update_date is None:
@@ -165,46 +181,48 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
 
         # Track what changed for history
         changes = []
-        if obj_in.status is not None and obj_in.status != old_status:
-            changes.append(f"status from {old_status} to {obj_in.status}")
-        if obj_in.permit_name is not None and obj_in.permit_name != old_permit_name:
+        if obj_in.status is not None and updated_permit.status != old_status:
+            changes.append(f"status from {old_status} to {updated_permit.status}")
+        if obj_in.permit_name is not None and updated_permit.permit_name != old_permit_name:
             changes.append(f"permit name")
-        if obj_in.expiration_date is not None and obj_in.expiration_date != old_expiration_date:
+        if obj_in.expiration_date is not None and updated_permit.expiration_date != old_expiration_date:
             changes.append(f"expiration date")
-        if obj_in.team_ids is not None and obj_in.team_ids != old_team_ids:
+        if obj_in.team_ids is not None and updated_permit.team_ids != old_team_ids:
             changes.append(f"team assignments")
+        if obj_in.coes_granted is not None and updated_permit.coes_granted != old_coes_granted:
+            changes.append(f"COEs granted")
 
         # Update the workspace if status changed
-        if obj_in.status is not None and obj_in.status != old_status:
-            workspace = db.query(Workspace).filter(Workspace.id == permit.workspace_id).first()
+        if obj_in.status is not None and updated_permit.status != old_status:
+            workspace = db.query(Workspace).filter(Workspace.id == updated_permit.workspace_id).first()
             if workspace:
-                workspace.data_access = obj_in.status
+                workspace.data_access = updated_permit.status
                 workspace.last_modification_date = datetime.now(timezone.utc)
                 db.add(workspace)
 
         # Create workspace history if there were changes
         if changes:
             # Determine action based on changes
-            if obj_in.status is not None and obj_in.status != old_status:
+            if obj_in.status is not None and updated_permit.status != old_status:
                 # Status change takes priority for action description
-                action = f"Permit status updated from {old_status} to {obj_in.status}"
-                if obj_in.status == PermitStatus.SUBMITTED:
+                action = f"Permit status updated from {old_status} to {updated_permit.status}"
+                if updated_permit.status == PermitStatus.SUBMITTED:
                     action = "Submitted data access application"
                     description = "The data permit application has been submitted"
-                elif obj_in.status == PermitStatus.INICIATED:
+                elif updated_permit.status == PermitStatus.INICIATED:
                     action = "Data access application initiated"
                     description = "The data permit application has been initiated"
-                elif obj_in.status == PermitStatus.GRANTED:
+                elif updated_permit.status == PermitStatus.GRANTED:
                     action = "Data access application approved"
                     description = "The data permit application has been approved"
-                elif obj_in.status == PermitStatus.REJECTED:
+                elif updated_permit.status == PermitStatus.REJECTED:
                     action = "Data access application rejected"
                     description = "The data permit application has been rejected"
-                elif obj_in.status == PermitStatus.EXPIRED:
+                elif updated_permit.status == PermitStatus.EXPIRED:
                     action = "Data access permit expired"
                     description = "The data permit has expired"
                 else:
-                    description = f"The permit status has been changed from {old_status} to {obj_in.status}"
+                    description = f"The permit status has been changed from {old_status} to {updated_permit.status}"
                 
                 # Add other changes to description if they exist
                 if len(changes) > 1:
@@ -222,7 +240,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
                 action=action,
                 description=description,
                 creator_id=user_id,
-                workspace_id=permit.workspace_id
+                workspace_id=updated_permit.workspace_id
             )
             db.add(workspace_history)
         
