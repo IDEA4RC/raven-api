@@ -40,7 +40,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         workspace_history = WorkspaceHistory(
             date=datetime.now(timezone.utc),
             action="Created workspace",
-            phase="Workspace History",
+            phase="Data permit",
             description="Workspace created successfully",
             workspace_id=db_obj.id,
             creator_id=user_id
