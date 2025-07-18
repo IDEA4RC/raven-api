@@ -61,7 +61,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
             action="Initial permit created",
             phase="Data Permit",
             description="Initial permit created with status Pending",
-            user_id=user_id,
+            creator_id=user_id,
             workspace_id=db_obj.id
         )
         db.add(permit_workspace_history)

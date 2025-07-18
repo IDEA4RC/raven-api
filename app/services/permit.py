@@ -62,7 +62,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             action=action,
             phase="Data Permit",
             description=description,
-            user_id=user_id,
+            creator_id=user_id,
             workspace_id=obj_in.workspace_id
         )
         db.add(workspace_history)
@@ -221,7 +221,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
                 phase="Data Permit",
                 action=action,
                 description=description,
-                user_id=user_id,
+                creator_id=user_id,
                 workspace_id=permit.workspace_id
             )
             db.add(workspace_history)
@@ -258,7 +258,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             action=f"Permit deleted (was status {permit_status})",
             phase="Data Permit",
             description=f"A permit with status {permit_status} has been deleted",
-            user_id=user_id,
+            creator_id=user_id,
             workspace_id=workspace_id
         )
         db.add(workspace_history)
