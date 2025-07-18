@@ -131,14 +131,14 @@ def get_permits_by_workspace(
 def get_permits_by_team(
     *,
     db: Session = Depends(get_db),
-    team_id: int,
+    team_id: str,
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Obtains all permits for a team.
     """
     permits = db.query(Permit)\
-        .filter(Permit.team_id == team_id)\
+        .filter(Permit.team_ids.contains([team_id]))\
         .all()
     return permits
 
