@@ -4,7 +4,7 @@ Schema de permisos para validación de datos y serialización
 
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PermitBase(BaseModel):
@@ -26,7 +26,7 @@ class PermitUpdate(BaseModel):
     status: Optional[int] = None
     permit_name: Optional[str] = None
     expiration_date: Optional[datetime] = None
-    team_ids: Optional[List[str]] = None
+    team_ids: Optional[List[str]] = Field(None, include_in_schema=False)  # Hidden from Swagger
     user_team_ids: Optional[List[str]] = None  # This will update team_ids
     coes_granted: Optional[List[str]] = None  # Only available when status is Granted
     update_date: Optional[datetime] = None
