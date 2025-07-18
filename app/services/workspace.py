@@ -48,19 +48,11 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         db.add(workspace_history)
         
         # Crear registro de permiso inicial (estado pendiente)
-        # Limpiar team_ids para evitar valores como "string"
-        clean_team_ids = []
-        if db_obj.team_ids:
-            clean_team_ids = [
-                team_id.strip() for team_id in db_obj.team_ids 
-                if team_id and team_id.strip() and team_id.strip() != "string"
-            ]
-        
         permit = Permit(
             status=PermitStatus.PENDING,  # 0 = Pending
             update_date=datetime.now(timezone.utc),
             workspace_id=db_obj.id,
-            team_ids=clean_team_ids,
+            team_ids=db_obj.team_ids or [],
         )
         db.add(permit)
         

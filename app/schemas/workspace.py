@@ -4,7 +4,7 @@ Schema de espacios de trabajo para validación de datos y serialización
 
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 
 class WorkspaceBase(BaseModel):
@@ -25,26 +25,6 @@ class WorkspaceCreate(WorkspaceBase):
     v6_study_id: Optional[str] = None
     status: Optional[str] = None  # Optional field for status
 
-    @field_validator("team_ids", mode="before")
-    @classmethod
-    def clean_team_ids(cls, v):
-        """Clean team_ids to remove invalid values like 'string'"""
-        if not v:
-            return []
-        
-        if isinstance(v, str):
-            # If it's a single string, convert to list
-            return [v] if v.strip() and v.strip() != "string" else []
-        
-        if isinstance(v, list):
-            # Clean the list
-            return [
-                team_id.strip() for team_id in v 
-                if team_id and isinstance(team_id, str) and team_id.strip() and team_id.strip() != "string"
-            ]
-        
-        return []
-
 
 class WorkspaceUpdate(BaseModel):
     """Schema para actualizar un espacio de trabajo."""
@@ -53,26 +33,6 @@ class WorkspaceUpdate(BaseModel):
     data_access: Optional[int] = None
     update_date: Optional[datetime] = None
     team_ids: Optional[List[str]] = None
-
-    @field_validator("team_ids", mode="before")
-    @classmethod
-    def clean_team_ids(cls, v):
-        """Clean team_ids to remove invalid values like 'string'"""
-        if not v:
-            return None
-        
-        if isinstance(v, str):
-            # If it's a single string, convert to list
-            return [v] if v.strip() and v.strip() != "string" else []
-        
-        if isinstance(v, list):
-            # Clean the list
-            return [
-                team_id.strip() for team_id in v 
-                if team_id and isinstance(team_id, str) and team_id.strip() and team_id.strip() != "string"
-            ]
-        
-        return None
 
 
 class Workspace(WorkspaceBase):
