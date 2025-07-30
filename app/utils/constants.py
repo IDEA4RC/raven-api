@@ -23,3 +23,8 @@ class DataAccessStatus(int, Enum):
     GRANTED = 3
     REJECTED = 4
     EXPIRED = 5
+
+class CohortStatus(int, Enum):
+    """Estados posibles para un cohort"""
+    CREATED = 0
+    EXECUTED = 1

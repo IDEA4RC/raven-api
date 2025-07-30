@@ -14,17 +14,15 @@ class Analysis(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     analysis_name = Column(String, index=True)
-    description = Column(Text)
+    analysis_description = Column(Text)
     creation_date = Column(DateTime(timezone=True), server_default=func.now())
-    status = Column(String)
-    details = Column(Text)
-    creator_id = Column(Integer, ForeignKey("users.id"))
+    update_date = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    user_id = Column(Integer, ForeignKey("users.id"))
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
-    running_date = Column(DateTime(timezone=True))
-    warning = Column(Text)
+    expiring_date = Column(DateTime(timezone=True))
     
     # Relationships
-    creator = relationship("User")
+    user = relationship("User")
     workspace = relationship("Workspace", back_populates="analyses")
     algorithms = relationship("Algorithm", back_populates="analysis")
     cohorts = relationship("Cohort", back_populates="analysis")

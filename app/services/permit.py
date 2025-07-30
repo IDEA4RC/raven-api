@@ -78,7 +78,6 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         permit_id: int,
         status: int,
         user_id: int,
-        phase: str
     ) -> Permit:
         """
         Update the status of a permit and log the change in workspace and workspace history
