@@ -5,6 +5,7 @@ Configurations and environment variables
 from typing import List, Optional, Union, Dict, Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+from secrets import token_urlsafe
 
 
 class Settings(BaseSettings):
@@ -14,44 +15,45 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/raven-api/v1"
     ENVIRONMENT: str = "development"
     
-    # CORS origins as string, will be converted to list
-    BACKEND_CORS_ORIGINS: str = ""
+    # CORS origins can be provided as CSV string or JSON/array via env
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="after")
     @classmethod
-    def assemble_cors_origins(cls, v: str) -> List[str]:
-        """Convert CORS origins string to list"""
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        """Normalize CORS origins to a list of strings."""
         if not v:
             return []
-        
-        # Handle comma-separated values
+        if isinstance(v, list):
+            return [str(origin).strip() for origin in v if str(origin).strip()]
+        # Handle comma-separated string
         if "," in v:
             return [origin.strip() for origin in v.split(",") if origin.strip()]
-        
-        # Handle single value
-        return [v.strip()] if v.strip() else []
+        # Single value string
+        return [v.strip()] if str(v).strip() else []
 
     @property
     def cors_origins(self) -> List[str]:
-        """Get CORS origins as a list"""
-        return self.BACKEND_CORS_ORIGINS
+        """Get CORS origins as a normalized list"""
+        return self.assemble_cors_origins(self.BACKEND_CORS_ORIGINS)
     
     # Database
     DATABASE_URI: str = "postgresql://raven_user:raven_password@localhost:5432/raven_db"
     
     # JWT
-    SECRET_KEY: str = "YOUR_SECRET_KEY_HERE"
+    # IMPORTANT: Provide via environment in production
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Keycloak
-    KEYCLOAK_SERVER_URL: str = "https://idea4rc-keykloak.development-iti.com"
+    KEYCLOAK_SERVER_URL: str = ""
     KEYCLOAK_REALM: str = "idea4rc"
     KEYCLOAK_CLIENT_ID: str = "raven"
-    KEYCLOAK_CLIENT_SECRET: str = "EfesLqjtooH49AYUU2U4ZkJKfQGFuUwx"
+    KEYCLOAK_CLIENT_SECRET: str = ""
     KEYCLOAK_PUBLIC_KEY: Optional[str] = None
-    KEYCLOAK_ADMIN_USERNAME: str = "admin"
-    KEYCLOAK_ADMIN_PASSWORD: str = "admin"
+    KEYCLOAK_ADMIN_USERNAME: str = ""
+    KEYCLOAK_ADMIN_PASSWORD: str = ""
     
     # Telemetry
     ENABLE_TELEMETRY: bool = False
@@ -70,6 +72,11 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "extra": "ignore"  # Allow extra fields in .env file
     }
+
+    def model_post_init(self, __context: Dict[str, Any]) -> None:
+        # Generate a dev-only secret key if none provided (not for production)
+        if not self.SECRET_KEY:
+            self.SECRET_KEY = token_urlsafe(32)
 
 
 settings = Settings()

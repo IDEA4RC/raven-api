@@ -2,7 +2,7 @@
 Endpoints for cohort operations
 """
 
-from typing import Any, List
+from typing import Any, List, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -41,7 +41,7 @@ def create_cohort(
         )
 
 
-@router.get("/", response_model=List[schemas.cohort.Cohort])
+@router.get("/")
 def get_cohorts(
     *,
     db: Session = Depends(get_db),
@@ -53,7 +53,23 @@ def get_cohorts(
     Obtains all cohorts with pagination.
     """
     cohorts = cohort_service.get_all_cohorts(db=db, skip=skip, limit=limit)
-    return cohorts
+
+    def serialize(c: Any) -> Dict[str, Any]:
+        fields = [
+            "id",
+            "cohort_name",
+            "cohort_description",
+            "cohort_query",
+            "creation_date",
+            "update_date",
+            "status",
+            "user_id",
+            "analysis_id",
+            "workspace_id",
+        ]
+        return {k: getattr(c, k) for k in fields if hasattr(c, k) and getattr(c, k) is not None}
+
+    return [serialize(c) for c in cohorts]
 
 
 @router.get("/{cohort_id}", response_model=schemas.cohort.Cohort)

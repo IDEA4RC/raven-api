@@ -17,7 +17,8 @@ from app.db.session import SessionLocal
 from app.utils.security import ALGORITHM
 from app.utils.keycloak import keycloak_handler
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
+_token_base = settings.KEYCLOAK_SERVER_URL.rstrip("/") if settings.KEYCLOAK_SERVER_URL else "http://localhost"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{_token_base}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
 
 
 

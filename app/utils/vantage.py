@@ -1,4 +1,7 @@
-from vantage.client import Client
+from typing import Optional, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 # def get_vantage_token(
 #     username: str,
@@ -30,7 +33,13 @@ from vantage.client import Client
 def create_vantage_client(
     username: str,
     password: str
-) -> Optional[Client]:
+) -> Optional[Any]:
+    try:
+        # Import lazily to make this optional
+        from vantage.client import Client  # type: ignore
+    except Exception:  # pragma: no cover - optional dependency missing
+        logger.warning("vantage.client not installed; create_vantage_client is a no-op")
+        return None
     try:
         client = Client(
             "https://orchestrator.idea.lst.tfo.upm.es",
@@ -49,9 +58,9 @@ def create_vantage_client(
         return None
 
 def create_vantage_organization(
-    organization_data: str
+    organization_data: Dict[str, Any]
 ) -> Optional[dict]:
-
+    # Client will be imported in create_vantage_client
     client = create_vantage_client(
         "root",
         "root"
@@ -73,8 +82,9 @@ def create_vantage_organization(
         return None
     
 def create_vantage_user(
-    user_data: dict
+    user_data: Dict[str, Any]
 ) -> Optional[dict]:
+    # Client will be imported in create_vantage_client
     client = create_vantage_client(
         "root",
         "root"
