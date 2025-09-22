@@ -23,6 +23,19 @@ echo -e "${CYAN}🚀 Despliegue RAVEN API con HTTPS + PGAdmin + Observabilidad${
 echo -e "${CYAN}=========================================================${NC}"
 echo ""
 echo -e "${GREEN}Dominio base:${NC} https://${DOMAIN}"
+
+# Resolver de kubectl (usa kubectl si existe o microk8s kubectl como fallback)
+KUBECTL=""
+resolve_kubectl() {
+    if command -v kubectl >/dev/null 2>&1; then
+        KUBECTL="kubectl"
+        return
+    fi
+    if command -v microk8s >/dev/null 2>&1; then
+        KUBECTL="microk8s kubectl"
+        return
+    fi
+}
 show_step() {
     echo -e "${BLUE}📋 $1${NC}"
 }
@@ -52,26 +65,29 @@ wait_for_user() {
 check_prerequisites() {
     show_step "Verificando prerrequisitos..."
     
-    # Verificar kubectl
-    if ! command -v kubectl &> /dev/null; then
-        show_error "kubectl no está instalado"
+    # Resolver kubectl
+    resolve_kubectl
+    if [ -z "${KUBECTL}" ]; then
+        show_error "kubectl no está disponible. Instala kubectl o usa microk8s."
+        echo "Sugerencia: en Ubuntu con snap: sudo snap install kubectl --classic"
+        echo "Alternativa: usa 'microk8s kubectl' instalando MicroK8s."
         exit 1
     fi
     
     # Verificar conexión al cluster
-    if ! kubectl cluster-info &> /dev/null; then
+    if ! ${KUBECTL} cluster-info &> /dev/null; then
         show_error "No se puede conectar al cluster de Kubernetes"
         exit 1
     fi
     
     # Verificar Istio
-    if ! kubectl get namespace istio-system &> /dev/null; then
+    if ! ${KUBECTL} get namespace istio-system &> /dev/null; then
         show_error "Istio no está instalado"
         exit 1
     fi
     
     # Verificar cert-manager
-    if ! kubectl get namespace cert-manager &> /dev/null; then
+    if ! ${KUBECTL} get namespace cert-manager &> /dev/null; then
         show_error "cert-manager no está instalado"
         exit 1
     fi
@@ -82,8 +98,8 @@ check_prerequisites() {
 # Crear namespace si no existe
 create_namespace() {
     show_step "Creando namespaces..."
-    kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-    kubectl create namespace ${MONITORING_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+    ${KUBECTL} create namespace ${NAMESPACE} --dry-run=client -o yaml | ${KUBECTL} apply -f -
+    ${KUBECTL} create namespace ${MONITORING_NAMESPACE} --dry-run=client -o yaml | ${KUBECTL} apply -f -
     show_success "Namespaces ${NAMESPACE} y ${MONITORING_NAMESPACE} listos"
 }
 
@@ -92,10 +108,10 @@ deploy_cert_manager() {
     show_step "Configurando cert-manager..."
     
     # ClusterIssuer para Let's Encrypt
-    kubectl apply -f kubernetes/cluster-issuer.yaml
+    ${KUBECTL} apply -f kubernetes/cluster-issuer.yaml
 
     # Certificate
-    kubectl apply -f kubernetes/certificate.yaml
+    ${KUBECTL} apply -f kubernetes/certificate.yaml
 
     show_success "cert-manager configurado"
 }
@@ -105,14 +121,14 @@ deploy_app() {
     show_step "Desplegando aplicación RAVEN API..."
     
     # Secrets
-    kubectl apply -f kubernetes/api-secrets.yaml -n ${NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/api-secrets.yaml -n ${NAMESPACE}
 
     # PostgreSQL
-    kubectl apply -f kubernetes/postgres-deployment.yaml -n ${NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/postgres-deployment.yaml -n ${NAMESPACE}
     
     # RAVEN API
-    kubectl apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
-    kubectl apply -f kubernetes/service.yaml -n ${NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/service.yaml -n ${NAMESPACE}
     
     show_success "Aplicación desplegada"
 }
@@ -120,7 +136,7 @@ deploy_app() {
 # Desplegar PGAdmin
 deploy_pgadmin() {
     show_step "Desplegando PGAdmin..."
-    kubectl apply -f kubernetes/pgadmin-deploy.yaml -n ${NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/pgadmin-deploy.yaml -n ${NAMESPACE}
 
     show_success "PGAdmin desplegado"
 }
@@ -129,7 +145,7 @@ deploy_pgadmin() {
 deploy_jaeger() {
     show_step "Desplegando Jaeger..."
 
-    kubectl apply -f kubernetes/jaeger-deploy.yaml -n ${MONITORING_NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/jaeger-deploy.yaml -n ${MONITORING_NAMESPACE}
 
     show_success "Jaeger desplegado"
 }
@@ -138,7 +154,7 @@ deploy_jaeger() {
 deploy_prometheus() {
     show_step "Desplegando Prometheus..."
     
-    kubectl apply -f kubernetes/prometheus-deploy.yaml -n ${MONITORING_NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/prometheus-deploy.yaml -n ${MONITORING_NAMESPACE}
 
     show_success "Prometheus desplegado"
 }
@@ -147,7 +163,7 @@ deploy_prometheus() {
 deploy_grafana() {
     show_step "Desplegando Grafana..."
 
-    kubectl apply -f kubernetes/grafana-deploy.yaml -n ${MONITORING_NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/grafana-deploy.yaml -n ${MONITORING_NAMESPACE}
 
     show_success "Grafana desplegado"
 }
@@ -157,10 +173,10 @@ deploy_networking() {
     show_step "Configurando red (Gateway + VirtualService)..."
 
     # Aplicar Gateway desde archivo
-    kubectl apply -f kubernetes/gateway.yaml
+    ${KUBECTL} apply -f kubernetes/gateway.yaml
     
     # Aplicar VirtualService desde archivo
-    kubectl apply -f kubernetes/virtual-service.yaml
+    ${KUBECTL} apply -f kubernetes/virtual-service.yaml
 
     show_success "Red configurada"
 }
@@ -174,6 +190,7 @@ wait_for_certificate() {
     
     while [ $attempts -lt $max_attempts ]; do
         if kubectl get certificate raven-api-tls -n istio-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' | grep -q "True"; then
+            # shellcheck disable=SC2016
             show_success "Certificado SSL listo"
             return 0
         fi
@@ -192,30 +209,30 @@ verify_deployment() {
     
     # Verificar pods
     echo "Pods en namespace ${NAMESPACE}:"
-    kubectl get pods -n ${NAMESPACE}
+    ${KUBECTL} get pods -n ${NAMESPACE}
     echo ""
     
     echo "Pods en namespace ${MONITORING_NAMESPACE}:"
-    kubectl get pods -n ${MONITORING_NAMESPACE}
+    ${KUBECTL} get pods -n ${MONITORING_NAMESPACE}
     echo ""
     
     # Verificar servicios
     echo "Servicios en namespace ${NAMESPACE}:"
-    kubectl get svc -n ${NAMESPACE}
+    ${KUBECTL} get svc -n ${NAMESPACE}
     echo ""
     
     echo "Servicios en namespace ${MONITORING_NAMESPACE}:"
-    kubectl get svc -n ${MONITORING_NAMESPACE}
+    ${KUBECTL} get svc -n ${MONITORING_NAMESPACE}
     echo ""
     
     # Verificar Gateway y VirtualService
     echo "Gateway y VirtualServices:"
-    kubectl get gateway,virtualservice
+    ${KUBECTL} get gateway,virtualservice
     echo ""
     
     # Verificar certificado
     echo "Estado del certificado:"
-    kubectl get certificate -n istio-system
+    ${KUBECTL} get certificate -n istio-system
     echo ""
     
     show_success "Verificación completada"
@@ -285,12 +302,13 @@ main() {
             ;;
         "clean")
             show_step "Limpiando recursos..."
-            kubectl delete namespace ${NAMESPACE} --ignore-not-found=true
-            kubectl delete namespace ${MONITORING_NAMESPACE} --ignore-not-found=true
-            kubectl delete gateway raven-gateway --ignore-not-found=true
-            kubectl delete virtualservice raven-api-vs --ignore-not-found=true
-            kubectl delete certificate raven-api-tls -n istio-system --ignore-not-found=true
-            kubectl delete clusterissuer letsencrypt-prod --ignore-not-found=true
+            resolve_kubectl
+            ${KUBECTL} delete namespace ${NAMESPACE} --ignore-not-found=true || true
+            ${KUBECTL} delete namespace ${MONITORING_NAMESPACE} --ignore-not-found=true || true
+            ${KUBECTL} delete gateway raven-gateway --ignore-not-found=true || true
+            ${KUBECTL} delete virtualservice raven-api-vs --ignore-not-found=true || true
+            ${KUBECTL} delete certificate raven-api-tls -n istio-system --ignore-not-found=true || true
+            ${KUBECTL} delete clusterissuer letsencrypt-prod --ignore-not-found=true || true
             show_success "Recursos limpiados"
             ;;
         "status")
