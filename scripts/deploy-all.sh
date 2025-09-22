@@ -22,12 +22,7 @@ IP_ADDRESS="138.4.10.238"
 echo -e "${CYAN}🚀 Despliegue RAVEN API con HTTPS + PGAdmin + Observabilidad${NC}"
 echo -e "${CYAN}=========================================================${NC}"
 echo ""
-# Func    echo -e "${GREEN}🌐 URLs disponibles:${NC}"
-    echo -e "   Frontend/API: https://${DOMAIN}"
-    echo -e "   PGAdmin:      https://${DOMAIN}/pgadmin"
-    echo -e "   Jaeger:       https://${DOMAIN}/jaeger"
-    echo -e "   Prometheus:   https://${DOMAIN}/prometheus"
-    echo -e "   Grafana:      https://${DOMAIN}/grafana"ra mostrar progreso
+echo -e "${GREEN}Dominio base:${NC} https://${DOMAIN}"
 show_step() {
     echo -e "${BLUE}📋 $1${NC}"
 }
@@ -110,7 +105,7 @@ deploy_app() {
     show_step "Desplegando aplicación RAVEN API..."
     
     # Secrets
-    kubectl apply -f kubernetes/secrets.yaml -n ${NAMESPACE}
+    kubectl apply -f kubernetes/api-secrets.yaml -n ${NAMESPACE}
 
     # PostgreSQL
     kubectl apply -f kubernetes/postgres-deployment.yaml -n ${NAMESPACE}

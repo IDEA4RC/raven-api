@@ -6,76 +6,19 @@ metadata:
 spec:
   hosts:
   - "orchestrator.idea.lst.tfo.upm.es"
-  - "138.4.10.238"
+  - "pgadmin.orchestrator.idea.lst.tfo.upm.es"
+  - "jaeger.orchestrator.idea.lst.tfo.upm.es"
+  - "prometheus.orchestrator.idea.lst.tfo.upm.es"
+  - "grafana.orchestrator.idea.lst.tfo.upm.es"
   gateways:
   - raven-gateway
   http:
-  # PGAdmin
+  # Dominio base: mantener rutas por path
   - match:
-    - uri:
-        prefix: /pgadmin
-    route:
-    - destination:
-        host: pgadmin-service.raven-api.svc.cluster.local
-        port:
-          number: 80
-      headers:
-        request:
-          set:
-            X-Script-Name: "/pgadmin"
-  # Jaeger
-  - match:
-    - uri:
-        prefix: /jaeger
-    route:
-    - destination:
-        host: jaeger-service.monitoring.svc.cluster.local
-        port:
-          number: 16686
-  - match:
-    - uri:
-        prefix: /static
-    route:
-    - destination:
-        host: jaeger-service.monitoring.svc.cluster.local
-        port:
-          number: 16686
-  - match:
-    - uri:
-        prefix: /api
-    route:
-    - destination:
-        host: jaeger-service.monitoring.svc.cluster.local
-        port:
-          number: 16686
-  # Prometheus
-  - match:
-    - uri:
-        prefix: /prometheus
-    route:
-    - destination:
-        host: prometheus-service.monitoring.svc.cluster.local
-        port:
-          number: 9090
-      headers:
-        request:
-          set:
-            X-Forwarded-Prefix: "/prometheus"
-  # Grafana
-  - match:
-    - uri:
-        prefix: /grafana
-    route:
-    - destination:
-        host: grafana-service.monitoring.svc.cluster.local
-        port:
-          number: 3000
-      headers:
-        request:
-          set:
-            X-Forwarded-Prefix: "/grafana"
-  - match:
-    - uri:
+    - headers:
+        Host:
+          exact: orchestrator.idea.lst.tfo.upm.es
+      uri:
         prefix: /raven-api
     route:
     - destination:
@@ -83,7 +26,10 @@ spec:
         port:
           number: 80
   - match:
-    - uri:
+    - headers:
+        Host:
+          exact: orchestrator.idea.lst.tfo.upm.es
+      uri:
         prefix: /docs
     route:
     - destination:
@@ -91,7 +37,10 @@ spec:
         port:
           number: 80
   - match:
-    - uri:
+    - headers:
+        Host:
+          exact: orchestrator.idea.lst.tfo.upm.es
+      uri:
         prefix: /server
     route:
     - destination:
@@ -108,7 +57,10 @@ spec:
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
             Access-Control-Allow-Credentials: "true"
   - match:
-    - uri:
+    - headers:
+        Host:
+          exact: orchestrator.idea.lst.tfo.upm.es
+      uri:
         prefix: /socket.io
     route:
     - destination:
@@ -125,7 +77,10 @@ spec:
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
             Access-Control-Allow-Credentials: "true"
   - match:
-    - uri:
+    - headers:
+        Host:
+          exact: orchestrator.idea.lst.tfo.upm.es
+      uri:
         prefix: /store
     route:
     - destination:
@@ -133,7 +88,10 @@ spec:
         port:
           number: 80
   - match:
-    - uri:
+    - headers:
+        Host:
+          exact: orchestrator.idea.lst.tfo.upm.es
+      uri:
         prefix: /
     route:
     - destination:
@@ -147,3 +105,43 @@ spec:
           - "Content-Security-Policy"
           add:
             Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';"
+  # PGAdmin en subdominio
+  - match:
+    - headers:
+        Host:
+          exact: pgadmin.orchestrator.idea.lst.tfo.upm.es
+    route:
+    - destination:
+        host: pgadmin-service.raven-api.svc.cluster.local
+        port:
+          number: 80
+  # Jaeger en subdominio
+  - match:
+    - headers:
+        Host:
+          exact: jaeger.orchestrator.idea.lst.tfo.upm.es
+    route:
+    - destination:
+        host: jaeger-service.monitoring.svc.cluster.local
+        port:
+          number: 16686
+  # Prometheus en subdominio
+  - match:
+    - headers:
+        Host:
+          exact: prometheus.orchestrator.idea.lst.tfo.upm.es
+    route:
+    - destination:
+        host: prometheus-service.monitoring.svc.cluster.local
+        port:
+          number: 9090
+  # Grafana en subdominio
+  - match:
+    - headers:
+        Host:
+          exact: grafana.orchestrator.idea.lst.tfo.upm.es
+    route:
+    - destination:
+        host: grafana-service.monitoring.svc.cluster.local
+        port:
+          number: 3000

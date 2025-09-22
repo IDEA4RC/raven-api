@@ -10,7 +10,11 @@ spec:
     kind: ClusterIssuer
     group: cert-manager.io
   dnsNames:
-  - orchestrator.lst.tfo.upm.es
+  - orchestrator.idea.lst.tfo.upm.es
+  - pgadmin.orchestrator.idea.lst.tfo.upm.es
+  - jaeger.orchestrator.idea.lst.tfo.upm.es
+  - prometheus.orchestrator.idea.lst.tfo.upm.es
+  - grafana.orchestrator.idea.lst.tfo.upm.es
   duration: 2160h # 90 días
   renewBefore: 360h # Renovar 15 días antes
   usages:

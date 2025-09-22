@@ -72,7 +72,7 @@ enable_addons() {
     microk8s enable cert-manager
     
     # Prometheus (opcional, también lo desplegamos manualmente)
-    microk8s enable prometheus
+    # microk8s enable prometheus
     
     show_success "Addons habilitados"
 }
