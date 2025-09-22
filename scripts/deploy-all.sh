@@ -189,7 +189,7 @@ wait_for_certificate() {
     local attempts=0
     
     while [ $attempts -lt $max_attempts ]; do
-        if kubectl get certificate raven-api-tls -n istio-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' | grep -q "True"; then
+        if ${KUBECTL} get certificate raven-api-tls -n istio-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' | grep -q "True"; then
             # shellcheck disable=SC2016
             show_success "Certificado SSL listo"
             return 0
@@ -263,12 +263,12 @@ show_final_info() {
     echo -e "   Password:    raven_password"
     echo ""
     echo -e "${GREEN}📊 Comandos útiles:${NC}"
-    echo -e "   Ver pods API:        kubectl get pods -n ${NAMESPACE}"
-    echo -e "   Ver pods monitor:    kubectl get pods -n ${MONITORING_NAMESPACE}"
-    echo -e "   Ver logs API:        kubectl logs -n ${NAMESPACE} -l app=raven-api -f"
-    echo -e "   Ver logs DB:         kubectl logs -n ${NAMESPACE} -l app=postgres -f"
-    echo -e "   Ver logs Jaeger:     kubectl logs -n ${MONITORING_NAMESPACE} -l app=jaeger -f"
-    echo -e "   Estado SSL:          kubectl get certificate -n istio-system"
+    echo -e "   Ver pods API:        ${KUBECTL} get pods -n ${NAMESPACE}"
+    echo -e "   Ver pods monitor:    ${KUBECTL} get pods -n ${MONITORING_NAMESPACE}"
+    echo -e "   Ver logs API:        ${KUBECTL} logs -n ${NAMESPACE} -l app=raven-api -f"
+    echo -e "   Ver logs DB:         ${KUBECTL} logs -n ${NAMESPACE} -l app=postgres -f"
+    echo -e "   Ver logs Jaeger:     ${KUBECTL} logs -n ${MONITORING_NAMESPACE} -l app=jaeger -f"
+    echo -e "   Estado SSL:          ${KUBECTL} get certificate -n istio-system"
     echo ""
     echo -e "${GREEN}🔧 Scripts disponibles:${NC}"
     echo -e "   Migrar BD:       ./scripts/migrate.sh migrate"
