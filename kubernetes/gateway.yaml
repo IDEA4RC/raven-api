@@ -19,9 +19,9 @@ spec:
     - "jaeger.orchestrator.idea.lst.tfo.upm.es"
     - "prometheus.orchestrator.idea.lst.tfo.upm.es"
     - "grafana.orchestrator.idea.lst.tfo.upm.es"
-    tls:
-      httpsRedirect: true
-  # HTTPS - certificado válido
+    # Disable redirect temporarily so Let's Encrypt HTTP-01 can reach port 80
+    # Re-enable to 'httpsRedirect: true' once the certificate is Ready
+    # HTTPS - certificado válido
   - port:
       number: 443
       name: https
