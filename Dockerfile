@@ -33,4 +33,4 @@ EXPOSE 8000
 # Default command for production
 ENV UVICORN_HOST=0.0.0.0
 ENV UVICORN_PORT=8000
-CMD ["uvicorn", "main:app", "--host", "${UVICORN_HOST}", "--port", "${UVICORN_PORT}"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
