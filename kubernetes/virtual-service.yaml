@@ -6,6 +6,7 @@ metadata:
 spec:
   hosts:
   - "orchestrator.idea.lst.tfo.upm.es"
+  - "vantage.orchestrator.idea.lst.tfo.upm.es"
   - "pgadmin.orchestrator.idea.lst.tfo.upm.es"
   - "jaeger.orchestrator.idea.lst.tfo.upm.es"
   - "prometheus.orchestrator.idea.lst.tfo.upm.es"
@@ -13,11 +14,10 @@ spec:
   gateways:
   - raven-gateway
   http:
-  # Dominio base: mantener rutas por path
+  # Dominio base usa el dominio base orchestrator.idea.lst.tfo.upm.es
   - match:
-    - headers:
-        Host:
-          exact: orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: orchestrator.idea.lst.tfo.upm.es
       uri:
         prefix: /raven-api
     route:
@@ -26,9 +26,8 @@ spec:
         port:
           number: 80
   - match:
-    - headers:
-        Host:
-          exact: orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: orchestrator.idea.lst.tfo.upm.es
       uri:
         prefix: /docs
     route:
@@ -37,11 +36,10 @@ spec:
         port:
           number: 80
   - match:
-    - headers:
-        Host:
-          exact: orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: vantage.orchestrator.idea.lst.tfo.upm.es
       uri:
-        prefix: /server
+        prefix: /api
     route:
     - destination:
         host: vantage6server-vantage6-server-service.default.svc.cluster.local
@@ -57,9 +55,8 @@ spec:
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
             Access-Control-Allow-Credentials: "true"
   - match:
-    - headers:
-        Host:
-          exact: orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: vantage.orchestrator.idea.lst.tfo.upm.es
       uri:
         prefix: /socket.io
     route:
@@ -77,9 +74,8 @@ spec:
             Access-Control-Allow-Headers: "Content-Type, Authorization, X-Requested-With"
             Access-Control-Allow-Credentials: "true"
   - match:
-    - headers:
-        Host:
-          exact: orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: vantage.orchestrator.idea.lst.tfo.upm.es
       uri:
         prefix: /store
     route:
@@ -88,9 +84,8 @@ spec:
         port:
           number: 80
   - match:
-    - headers:
-        Host:
-          exact: orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: vantage.orchestrator.idea.lst.tfo.upm.es
       uri:
         prefix: /
     route:
@@ -107,9 +102,8 @@ spec:
             Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; connect-src *; font-src *; style-src * 'unsafe-inline'; img-src *; script-src * 'unsafe-inline' 'unsafe-eval';"
   # PGAdmin en subdominio
   - match:
-    - headers:
-        Host:
-          exact: pgadmin.orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: pgadmin.orchestrator.idea.lst.tfo.upm.es
     route:
     - destination:
         host: pgadmin-service.raven-api.svc.cluster.local
@@ -117,9 +111,8 @@ spec:
           number: 80
   # Jaeger en subdominio
   - match:
-    - headers:
-        Host:
-          exact: jaeger.orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: jaeger.orchestrator.idea.lst.tfo.upm.es
     route:
     - destination:
         host: jaeger-service.monitoring.svc.cluster.local
@@ -127,9 +120,8 @@ spec:
           number: 16686
   # Prometheus en subdominio
   - match:
-    - headers:
-        Host:
-          exact: prometheus.orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: prometheus.orchestrator.idea.lst.tfo.upm.es
     route:
     - destination:
         host: prometheus-service.monitoring.svc.cluster.local
@@ -137,9 +129,8 @@ spec:
           number: 9090
   # Grafana en subdominio
   - match:
-    - headers:
-        Host:
-          exact: grafana.orchestrator.idea.lst.tfo.upm.es
+    - authority:
+        exact: grafana.orchestrator.idea.lst.tfo.upm.es
     route:
     - destination:
         host: grafana-service.monitoring.svc.cluster.local

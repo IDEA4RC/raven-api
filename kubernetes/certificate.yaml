@@ -11,6 +11,7 @@ spec:
     group: cert-manager.io
   dnsNames:
   - orchestrator.idea.lst.tfo.upm.es
+  - vantage.orchestrator.idea.lst.tfo.upm.es
   - pgadmin.orchestrator.idea.lst.tfo.upm.es
   - jaeger.orchestrator.idea.lst.tfo.upm.es
   - prometheus.orchestrator.idea.lst.tfo.upm.es
