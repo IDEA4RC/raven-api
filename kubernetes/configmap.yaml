@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: raven-api-config
+  namespace: raven-api
+data:
+  PROJECT_NAME: "RAVEN API"
+  VERSION: "0.1.0"
+  API_V1_STR: "/raven-api/v1"
+  ENVIRONMENT: "production" # Override respecto a .env si se desea prod
+  BACKEND_CORS_ORIGINS: "http://localhost:8000,http://localhost:3000,http://localhost,https://host01.lst.tfo.upm.es"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  ENABLE_TELEMETRY: "False"
+  TELEMETRY_ENDPOINT: "http://jaeger-collector:4317"
+  TELEMETRY_SAMPLING_RATE: "1.0"
+  ENABLE_PROMETHEUS: "False"
+  METRICS_PORT: "8000"
+  HOST_URL: "https://orchestrator.idea.lst.tfo.upm.es"
+  KEYCLOAK_SERVER_URL: "https://idea4rc-keykloak.development-iti.com"
+  KEYCLOAK_REALM: "idea4rc"
+  KEYCLOAK_CLIENT_ID: "raven"

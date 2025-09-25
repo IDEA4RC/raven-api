@@ -33,6 +33,7 @@ spec:
             cpu: "500m"
             memory: "512Mi"
         env:
+        # --- Referencias a Secret (credenciales / sensibles) ---
         - name: DATABASE_URI
           valueFrom:
             secretKeyRef:
@@ -43,14 +44,98 @@ spec:
             secretKeyRef:
               name: raven-api-secrets
               key: secret-key
+        - name: KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: raven-api-secrets
+              key: keycloak-client-secret
+        - name: KEYCLOAK_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: raven-api-secrets
+              key: keycloak-public-key
+
+        # --- Configuración no sensible (ConfigMap) ---
         - name: PROJECT_NAME
-          value: "RAVEN API"
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: PROJECT_NAME
+        - name: VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: VERSION
         - name: API_V1_STR
-          value: "/raven-api/v1"
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: API_V1_STR
         - name: ENVIRONMENT
-          value: "production"
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: ENVIRONMENT
         - name: BACKEND_CORS_ORIGINS
-          value: 'http://localhost,https://orchestrator.idea.lst.tfo.upm.es,https://grafana.orchestrator.idea.lst.tfo.upm.es,https://jaeger.orchestrator.idea.lst.tfo.upm.es,https://prometheus.orchestrator.idea.lst.tfo.upm.es,https://pgadmin.orchestrator.idea.lst.tfo.upm.es'
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: BACKEND_CORS_ORIGINS
+        - name: ALGORITHM
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: ALGORITHM
+        - name: ACCESS_TOKEN_EXPIRE_MINUTES
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: ACCESS_TOKEN_EXPIRE_MINUTES
+        - name: ENABLE_TELEMETRY
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: ENABLE_TELEMETRY
+        - name: TELEMETRY_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: TELEMETRY_ENDPOINT
+        - name: TELEMETRY_SAMPLING_RATE
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: TELEMETRY_SAMPLING_RATE
+        - name: ENABLE_PROMETHEUS
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: ENABLE_PROMETHEUS
+        - name: METRICS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: METRICS_PORT
+        - name: HOST_URL
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: HOST_URL
+        - name: KEYCLOAK_SERVER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: KEYCLOAK_SERVER_URL
+        - name: KEYCLOAK_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: KEYCLOAK_REALM
+        - name: KEYCLOAK_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: KEYCLOAK_CLIENT_ID
         readinessProbe:
           httpGet:
             path: /raven-api/v1/health/
