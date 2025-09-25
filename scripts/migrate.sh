@@ -144,12 +144,18 @@ seed_db() {
         exit 1
     fi
     
-    # Insertar tipos de usuario por defecto
-    ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U raven_user -d raven_db -c "
+    echo -e "${BLUE}🔎 Comprobando existencia de tabla user_types...${NC}"
+    if ! ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -v ON_ERROR_STOP=1 -U raven_user -d raven_db -c "SELECT 1 FROM information_schema.tables WHERE table_name='user_types';" >/dev/null; then
+        echo -e "${RED}❌ La tabla user_types no existe. ¿Has ejecutado primero 'migrate'?${NC}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}🚀 Ejecutando upsert de user_types...${NC}"
+    ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -v ON_ERROR_STOP=1 -U raven_user -d raven_db -c "
         INSERT INTO user_types (
-            id, description, metadata_search, permissions, cohort_builder, 
+            id, description, metadata_search, permissions, cohort_builder,
             data_quality, export, results_report
-        ) VALUES 
+        ) VALUES
         (1, 'Usuario básico', 1, 0, 0, 1, 0, 1),
         (2, 'Usuario premium', 2, 1, 1, 2, 2, 2),
         (3, 'Administrador', 4, 1, 1, 2, 4, 2),
@@ -164,8 +170,24 @@ seed_db() {
             export = EXCLUDED.export,
             results_report = EXCLUDED.results_report;
     "
-    
-    echo -e "${GREEN}✅ Datos iniciales insertados${NC}"
+
+    echo -e "${BLUE}🧪 Verificando filas insertadas...${NC}"
+    ROW_COUNT=$(${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U raven_user -d raven_db -t -A -c "SELECT COUNT(*) FROM user_types;" | tr -d '\r')
+    echo -e "${BLUE}📊 Total filas en user_types: ${ROW_COUNT}${NC}"
+
+    if [ "${ROW_COUNT}" = "0" ]; then
+        echo -e "${RED}❌ No hay filas tras el seeding. Posibles causas:${NC}"
+        echo "  - Conectado a otra base de datos distinta (comprueba raven_db)"
+        echo "  - 'clean' ejecutado después del seeding"
+        echo "  - Search_path alterado (comprueba SHOW search_path)"
+        echo "  - Transacción abortada (revisa logs de Postgres)"
+        exit 1
+    fi
+
+    echo -e "${BLUE}📄 Listado de filas:${NC}"
+    ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U raven_user -d raven_db -c "SELECT id, description FROM user_types ORDER BY id;"
+
+    echo -e "${GREEN}✅ Seeding completado correctamente${NC}"
 }
 
 diagnose() {
