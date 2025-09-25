@@ -53,11 +53,22 @@ get_postgres_pod() {
 
 create_migration() {
     echo -e "${YELLOW}🔧 Creando nueva migración...${NC}"
-    
-    API_POD=$(get_api_pod)
+    resolve_kubectl
+    # Intentar encontrar el pod hasta 10s (p.e. tras un rollout)
+    for i in $(seq 1 10); do
+        API_POD=$(get_api_pod)
+        if [ -n "$API_POD" ]; then
+            break
+        fi
+        sleep 1
+    done
     if [ -z "$API_POD" ]; then
-        echo -e "${RED}❌ No se encontró el pod de la API${NC}"
+        echo -e "${RED}❌ No se encontró el pod de la API (label app=raven-api)${NC}"
+        echo -e "${YELLOW}💡 Sugerencia:${NC} verifica: ${KUBECTL} get pods -n ${NAMESPACE}"
         exit 1
+    fi
+    if [ "$DEBUG" = "true" ]; then
+        echo -e "${BLUE}🔍 Usando pod: ${API_POD}${NC}"
     fi
     
     # Solicitar mensaje para la migración
