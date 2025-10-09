@@ -95,6 +95,34 @@ check_prerequisites() {
     show_success "Prerrequisitos verificados"
 }
 
+    # Verificar prerrequisitos (modo local, sin cert-manager)
+    check_prerequisites_local() {
+        show_step "Verificando prerrequisitos (modo local, sin cert-manager)..."
+
+        # Resolver kubectl
+        resolve_kubectl
+        if [ -z "${KUBECTL}" ]; then
+            show_error "kubectl no está disponible. Instala kubectl o usa microk8s."
+            echo "Sugerencia: en Ubuntu con snap: sudo snap install kubectl --classic"
+            echo "Alternativa: usa 'microk8s kubectl' instalando MicroK8s."
+            exit 1
+        fi
+
+        # Verificar conexión al cluster
+        if ! ${KUBECTL} cluster-info &> /dev/null; then
+            show_error "No se puede conectar al cluster de Kubernetes"
+            exit 1
+        fi
+
+        # Verificar Istio
+        if ! ${KUBECTL} get namespace istio-system &> /dev/null; then
+            show_error "Istio no está instalado"
+            exit 1
+        fi
+
+        show_success "Prerrequisitos locales verificados"
+    }
+
 # Crear namespace si no existe
 create_namespace() {
     show_step "Creando namespaces..."
@@ -179,6 +207,60 @@ deploy_networking() {
     ${KUBECTL} apply -f kubernetes/virtual-service.yaml
 
     show_success "Red configurada"
+}
+
+# Configurar red (Gateway HTTP-only para entorno local)
+deploy_networking_local() {
+        show_step "Configurando red local (Gateway HTTP sin TLS)..."
+
+        # Crear/actualizar un Gateway sin TLS (solo HTTP 80)
+        cat <<EOF | ${KUBECTL} apply -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+    name: raven-gateway
+    namespace: default
+spec:
+    selector:
+        istio: ingressgateway
+    servers:
+    - port:
+            number: 80
+            name: http
+            protocol: HTTP
+        hosts:
+        - "${DOMAIN}"
+        - "vantage.${DOMAIN}"
+        - "pgadmin.${DOMAIN}"
+        - "jaeger.${DOMAIN}"
+        - "prometheus.${DOMAIN}"
+        - "grafana.${DOMAIN}"
+EOF
+
+        # Aplicar VirtualService desde archivo (paths y rutas)
+        ${KUBECTL} apply -f kubernetes/virtual-service.yaml
+
+        show_success "Red local configurada"
+}
+
+# Despliegue local (sin certificados)
+deploy_local() {
+        check_prerequisites_local
+        create_namespace
+        # No cert-manager ni certificados en local
+        deploy_app
+        deploy_pgadmin
+        deploy_jaeger
+        deploy_prometheus
+        deploy_grafana
+        deploy_networking_local
+        sleep 10
+        verify_deployment
+
+        echo ""
+        echo -e "${CYAN}💡 Acceso local (HTTP):${NC}"
+        echo -e "   Salud API vía NodePort o LB: http://${IP_ADDRESS}/raven-api/v1/health/"
+        echo -e "   Swagger (si usas Host header o DNS local): http://${DOMAIN}/docs"
 }
 
 # Esperar a que el certificado esté listo
@@ -300,6 +382,9 @@ main() {
             verify_deployment
             show_final_info
             ;;
+        "deploy-local")
+            deploy_local
+            ;;
         "clean")
             show_step "Limpiando recursos..."
             resolve_kubectl
@@ -329,10 +414,11 @@ main() {
             show_success "PGAdmin desplegado"
             ;;
         "help")
-            echo "Uso: $0 [deploy|clean|status|monitoring|pgadmin|help]"
+            echo "Uso: $0 [deploy|deploy-local|clean|status|monitoring|pgadmin|help]"
             echo ""
             echo "Comandos:"
             echo "  deploy     - Desplegar todo (por defecto)"
+            echo "  deploy-local - Desplegar entorno local sin TLS/certificados"
             echo "  clean      - Limpiar todos los recursos"
             echo "  status     - Verificar estado del despliegue"
             echo "  monitoring - Desplegar solo Jaeger + Prometheus + Grafana"
