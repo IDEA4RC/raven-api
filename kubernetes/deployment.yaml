@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: raven-api
-        image: localhost:32000/raven-api:latest
+        image: sgonzmart/raven-api
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

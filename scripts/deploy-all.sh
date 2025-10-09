@@ -203,6 +203,7 @@ deploy_app() {
     # RAVEN API
     ${KUBECTL} apply -f kubernetes/deployment.yaml -n ${NAMESPACE}
     ${KUBECTL} apply -f kubernetes/service.yaml -n ${NAMESPACE}
+    ${KUBECTL} apply -f kubernetes/configmap-dev.yaml -n ${NAMESPACE}
     
     show_success "Aplicación desplegada"
 }
@@ -265,7 +266,6 @@ apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
     name: raven-gateway
-    namespace: default
 spec:
     selector:
         istio: ingressgateway
@@ -285,7 +285,7 @@ spec:
 EOF
 
         # Aplicar VirtualService desde archivo (paths y rutas)
-        ${KUBECTL} apply -f kubernetes/virtual-service.yaml
+        ${KUBECTL} apply -f kubernetes/virtual-service-dev.yaml
 
         show_success "Red local configurada"
 }
@@ -302,7 +302,7 @@ deploy_local() {
         deploy_grafana
         deploy_networking_local
         sleep 10
-        verify_deployment
+        verify_deployment_no_cert
 
         # Ofrecer configurar /etc/hosts para resolver dominios a 127.0.0.1
         if ask_yes_no "¿Quieres añadir entradas en /etc/hosts para que ${DOMAIN} y subdominios apunten a 127.0.0.1?"; then
@@ -378,6 +378,35 @@ verify_deployment() {
     # Verificar certificado
     echo "Estado del certificado:"
     ${KUBECTL} get certificate -n istio-system
+    echo ""
+    
+    show_success "Verificación completada"
+}
+
+verify_deployment_no_cert() {
+    show_step "Verificando despliegue..."
+    
+    # Verificar pods
+    echo "Pods en namespace ${NAMESPACE}:"
+    ${KUBECTL} get pods -n ${NAMESPACE}
+    echo ""
+    
+    echo "Pods en namespace ${MONITORING_NAMESPACE}:"
+    ${KUBECTL} get pods -n ${MONITORING_NAMESPACE}
+    echo ""
+    
+    # Verificar servicios
+    echo "Servicios en namespace ${NAMESPACE}:"
+    ${KUBECTL} get svc -n ${NAMESPACE}
+    echo ""
+    
+    echo "Servicios en namespace ${MONITORING_NAMESPACE}:"
+    ${KUBECTL} get svc -n ${MONITORING_NAMESPACE}
+    echo ""
+    
+    # Verificar Gateway y VirtualService
+    echo "Gateway y VirtualServices:"
+    ${KUBECTL} get gateway,virtualservice
     echo ""
     
     show_success "Verificación completada"

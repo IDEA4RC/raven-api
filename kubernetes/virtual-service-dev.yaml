@@ -1,0 +1,28 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: raven-api-vs
+  namespace: default
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - raven-gateway
+  http:
+    # Dominio base usa el dominio base orchestrator.idea.lst.tfo.upm.es
+    - match:
+        - uri:
+            prefix: /raven-api
+      route:
+        - destination:
+            host: raven-api.raven-api.svc.cluster.local
+            port:
+              number: 80
+    - match:
+        - uri:
+            prefix: /docs
+      route:
+        - destination:
+            host: raven-api.raven-api.svc.cluster.local
+            port:
+              number: 80
