@@ -274,7 +274,8 @@ spec:
             number: 80
             name: http
             protocol: HTTP
-        hosts:
+      hosts:
+        - 127.0.0.1
         - "${DOMAIN}"
         - "vantage.${DOMAIN}"
         - "pgadmin.${DOMAIN}"
