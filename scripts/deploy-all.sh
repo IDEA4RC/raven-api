@@ -61,6 +61,52 @@ wait_for_user() {
     read
 }
 
+# Obtener NodePorts del Istio IngressGateway (HTTP/HTTPS)
+get_ingress_nodeports() {
+    HTTP_NODEPORT=$(${KUBECTL} -n istio-system get svc istio-ingressgateway \
+        -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}')
+    HTTPS_NODEPORT=$(${KUBECTL} -n istio-system get svc istio-ingressgateway \
+        -o jsonpath='{.spec.ports[?(@.port==443)].nodePort}')
+}
+
+# Pregunta sí/no
+ask_yes_no() {
+    local prompt="$1"
+    local reply
+    while true; do
+        read -r -p "${prompt} [y/N]: " reply
+        case ${reply} in
+            [Yy]*) return 0 ;;
+            [Nn]*|"") return 1 ;;
+            *) echo "Por favor responde 'y' o 'n'." ;;
+        esac
+    done
+}
+
+# Asegura una entrada en /etc/hosts
+ensure_host_in_hosts() {
+    local host="$1"
+    if ! grep -Eq "^[^#]*\s${host}(\s|$)" /etc/hosts; then
+        echo "127.0.0.1 ${host}" | sudo tee -a /etc/hosts >/dev/null
+    fi
+}
+
+# Añade entradas a /etc/hosts para entorno local
+add_hosts_entries() {
+    echo -e "${BLUE}📋 Configurando /etc/hosts para resolver dominios a 127.0.0.1...${NC}"
+    # Backup de seguridad
+    if [ -w /etc/hosts ]; then
+        sudo cp /etc/hosts "/etc/hosts.bak-$(date +%s)"
+    fi
+    ensure_host_in_hosts "${DOMAIN}"
+    ensure_host_in_hosts "pgadmin.${DOMAIN}"
+    ensure_host_in_hosts "jaeger.${DOMAIN}"
+    ensure_host_in_hosts "prometheus.${DOMAIN}"
+    ensure_host_in_hosts "grafana.${DOMAIN}"
+    ensure_host_in_hosts "vantage.${DOMAIN}"
+    show_success "/etc/hosts actualizado (se añadieron entradas para 127.0.0.1)"
+}
+
 # Verificar prerrequisitos
 check_prerequisites() {
     show_step "Verificando prerrequisitos..."
@@ -257,10 +303,26 @@ deploy_local() {
         sleep 10
         verify_deployment
 
-        echo ""
-        echo -e "${CYAN}💡 Acceso local (HTTP):${NC}"
-        echo -e "   Salud API vía NodePort o LB: http://${IP_ADDRESS}/raven-api/v1/health/"
-        echo -e "   Swagger (si usas Host header o DNS local): http://${DOMAIN}/docs"
+        # Ofrecer configurar /etc/hosts para resolver dominios a 127.0.0.1
+        if ask_yes_no "¿Quieres añadir entradas en /etc/hosts para que ${DOMAIN} y subdominios apunten a 127.0.0.1?"; then
+            add_hosts_entries
+        else
+            show_warning "Saltando configuración de /etc/hosts. Puedes hacerlo manualmente más tarde."
+        fi
+
+    get_ingress_nodeports || true
+    echo ""
+    echo -e "${CYAN}💡 Acceso local (HTTP):${NC}"
+    echo -e "   Opción A) Usando NodePort con Host header:"
+    echo -e "      curl -H 'Host: ${DOMAIN}' http://127.0.0.1:${HTTP_NODEPORT:-<NODEPORT80>}/raven-api/v1/health/"
+    echo -e "      Navegador: http://127.0.0.1:${HTTP_NODEPORT:-<NODEPORT80>}/docs (con DNS local o plugin que fije Host)"
+    echo ""
+    echo -e "   Opción B) Port-forward del Ingress (recomendado en local):"
+    echo -e "      ${KUBECTL} -n istio-system port-forward svc/istio-ingressgateway 8080:80 8443:443"
+    echo -e "      Luego: http://127.0.0.1:8080/raven-api/v1/health/ y http://127.0.0.1:8080/docs"
+    echo ""
+    echo -e "   Consejo: Si aceptaste configurar /etc/hosts, también puedes abrir:"
+    echo -e "      http://${DOMAIN}:8080/docs  (resolviendo ${DOMAIN} → 127.0.0.1)"
 }
 
 # Esperar a que el certificado esté listo
