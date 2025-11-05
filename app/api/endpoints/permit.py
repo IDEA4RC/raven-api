@@ -163,7 +163,7 @@ def update_permit_status(
     
     try:
         permit = permit_service.update_permit_status(
-            db=db, permit_id=permit_id, status=permit_update.status, user_id=current_user.id, phase="Data Permit"
+            db=db, permit_id=permit_id, status=permit_update.status, user_id=current_user.id
         )
         return permit
     except ValueError as e:

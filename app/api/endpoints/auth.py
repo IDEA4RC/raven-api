@@ -98,6 +98,7 @@ def login(
             db.add(user)
             db.commit()
             db.refresh(user)
+            result["keycloak_id"] = keycloak_id
         else:
             # User exists, check if any information needs to be updated
             needs_update = False
@@ -137,6 +138,8 @@ def login(
             if needs_update:
                 db.commit()
                 db.refresh(user)
+
+            result["keycloak_id"] = keycloak_id
     
         return result
     except HTTPException as e:
