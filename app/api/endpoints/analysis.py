@@ -15,11 +15,11 @@ from app.services.analysis import analysis_service
 router = APIRouter()
 
 
-@router.post("/", response_model=schemas.analysis.Analysis, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.Analysis, status_code=status.HTTP_201_CREATED)
 def create_analysis(
     *,
     db: Session = Depends(get_db),
-    analysis_in: schemas.analysis.AnalysisCreate,
+    analysis_in: schemas.AnalysisCreate,
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
@@ -122,7 +122,7 @@ def delete_analysis(
     Deletes an analysis.
     """
     try:
-        analysis_service.delete_with_history(
+        analysis_service.delete_with_history_and_cohorts(
             db=db, analysis_id=analysis_id, user_id=current_user.id
         )
     except ValueError as e:

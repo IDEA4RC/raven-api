@@ -19,11 +19,11 @@ router = APIRouter()
 cohort_service = CohortService(Cohort)
 
 
-@router.post("/", response_model=schemas.cohort.Cohort, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.Cohort, status_code=status.HTTP_201_CREATED)
 def create_cohort(
     *,
     db: Session = Depends(get_db),
-    cohort_in: schemas.cohort.CohortCreate,
+    cohort_in: schemas.CohortCreate,
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
@@ -170,4 +170,17 @@ def get_cohorts_by_workspace(
     Obtains all cohorts for a workspace.
     """
     cohorts = cohort_service.get_cohorts_by_workspace(db=db, workspace_id=workspace_id)
+    return cohorts
+
+@router.get("/analysis/{analysis_id_in}", response_model=List[schemas.Cohort])
+def get_cohorts_by_analysis(
+    *,
+    db: Session = Depends(get_db),
+    analysis_id_in: int,
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Obtains all cohorts for a workspace.
+    """
+    cohorts = cohort_service.get_cohorts_by_analysis(db=db, analysis_id=analysis_id_in)
     return cohorts

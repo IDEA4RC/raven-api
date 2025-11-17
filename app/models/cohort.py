@@ -20,8 +20,8 @@ class Cohort(Base):
     update_date = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     status = Column(Integer)  # Status of the cohort
     user_id = Column(Integer, ForeignKey("users.id"))
-    analysis_id = Column(Integer, ForeignKey("analyses.id"))
-    workspace_id = Column(Integer, ForeignKey("workspaces.id"))
+    analysis_id = Column(Integer, ForeignKey("analyses.id", ondelete="CASCADE"))
+    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"))
     
     # Relationships
     user = relationship("User")

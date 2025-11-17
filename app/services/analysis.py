@@ -13,7 +13,10 @@ from app.models.workspace import Workspace
 from app.models.workspace_history import WorkspaceHistory
 from app.schemas.analysis import AnalysisCreate, AnalysisUpdate
 from app.services.base import BaseService
+from app.models.cohort import Cohort
+from app.services.cohort import CohortService
 
+cohort_service = CohortService(Cohort)
 
 class AnalysisService(BaseService[Analysis, AnalysisCreate, AnalysisUpdate]):
     """
@@ -41,7 +44,7 @@ class AnalysisService(BaseService[Analysis, AnalysisCreate, AnalysisUpdate]):
             obj_in_data["creation_date"] = datetime.now(timezone.utc)
         if not obj_in_data.get("update_date"):
             obj_in_data["update_date"] = datetime.now(timezone.utc)
-        
+        obj_in_data["user_id"] = user_id
         db_obj = Analysis(**obj_in_data)
         db.add(db_obj)
         db.flush()
@@ -131,6 +134,57 @@ class AnalysisService(BaseService[Analysis, AnalysisCreate, AnalysisUpdate]):
         if not analysis:
             raise ValueError(f"Analysis with id {analysis_id} not found")
 
+        #  Buscar todos los cohorts relacionados con este analysis
+        cohorts = db.query(Cohort).filter(Cohort.analysis_id == analysis_id).all()
+
+        # 2️ Borrar los cohorts
+        for cohort in cohorts:
+            db.delete(cohort)
+
+
+        # Store values for history before deletion
+        workspace_id = analysis.workspace_id
+        analysis_name = analysis.analysis_name
+        
+        # Delete the analysis
+        deleted_analysis = self.remove(db, id=analysis_id)
+
+        # Create workspace history entry
+        workspace_history = WorkspaceHistory(
+            date=datetime.now(timezone.utc),
+            action="Analysis deleted",
+            phase="Data Analysis",
+            description=f"Analysis '{analysis_name}' has been deleted",
+            creator_id=user_id,
+            workspace_id=workspace_id
+        )
+        db.add(workspace_history)
+        db.commit()
+        
+        return deleted_analysis
+
+    def delete_with_history_and_cohorts(
+        self,
+        db: Session,
+        *,
+        analysis_id: int,
+        user_id: int,
+    ) -> Analysis:
+        """
+        Delete an analysis and log the change in workspace history
+        """
+        # Get the analysis
+        analysis = self.get(db, analysis_id)
+        if not analysis:
+            raise ValueError(f"Analysis with id {analysis_id} not found")
+
+        #  Buscar todos los cohorts relacionados con este analysis
+        cohorts = db.query(Cohort).filter(Cohort.analysis_id == analysis_id).all()
+
+        # 2️ Borrar los cohorts
+        for cohort in cohorts:
+            cohort_service.delete_cohort(db, cohort.id, user_id)
+            
         # Store values for history before deletion
         workspace_id = analysis.workspace_id
         analysis_name = analysis.analysis_name

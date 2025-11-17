@@ -10,6 +10,9 @@ from app.schemas.permit import Permit, PermitCreate, PermitUpdate
 from app.schemas.workspace import Workspace, WorkspaceCreate, WorkspaceUpdate
 from app.schemas.workspace_history import WorkspaceHistory, WorkspaceHistoryCreate
 from app.schemas.token import Token, TokenPayload
+from app.schemas.analysis import Analysis, AnalysisCreate, AnalysisUpdate
+from app.schemas.cohort import Cohort, CohortCreate, CohortUpdate
+from app.schemas.cohort_result import CohortResult, CohortResultCreate, CohortResultUpdate
 
 __all__ = [
     "Organization", "OrganizationCreate", "OrganizationUpdate",
@@ -19,5 +22,7 @@ __all__ = [
     "Permit", "PermitCreate", "PermitUpdate",
     "Workspace", "WorkspaceCreate", "WorkspaceUpdate",
     "WorkspaceHistory", "WorkspaceHistoryCreate",
-    "Token", "TokenPayload",
-]
+    "Token", "TokenPayload", "Analysis", "AnalysisCreate", "AnalysisUpdate",
+    "Cohort", "CohortCreate", "CohortUpdate",
+    "CohortResult", "CohortResultCreate", "CohortResultUpdate"
+] 

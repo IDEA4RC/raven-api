@@ -13,8 +13,10 @@ class CohortResult(Base):
 
     # Almacenamos ahora un array de texto (text[]) para permitir múltiples IDs flexibles.
     # Usamos Text en lugar de String para evitar longitud y la mención a VARCHAR/VARYING.
-    data_id = Column(ARRAY(Text), primary_key=True, index=True)
-    cohort_id = Column(Integer, ForeignKey("cohorts.id"), primary_key=True)
+   
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    data_id = Column(ARRAY(Text), nullable=False)
+    cohort_id = Column(Integer, ForeignKey("cohorts.id", ondelete="CASCADE"), nullable=False)   
     
     # Relationships
     cohort = relationship("Cohort", back_populates="results")

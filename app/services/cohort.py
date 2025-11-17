@@ -10,8 +10,9 @@ from sqlalchemy import func
 
 from app.models.cohort import Cohort
 from app.models.workspace import Workspace
+from app.models.analysis import Analysis
 from app.models.workspace_history import WorkspaceHistory
-from app.schemas.cohort import Cohort, CohortCreate, CohortUpdate, CohortStatusUpdate
+from app.schemas.cohort import CohortCreate, CohortUpdate, CohortStatusUpdate
 from app.services.base import BaseService
 from app.utils.constants import CohortStatus
 
@@ -19,40 +20,57 @@ from app.utils.constants import CohortStatus
 class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
 
     def create_with_history(
-        self, db: Session, obj_in: CohortCreate, user_id: int
+        self, 
+        db: Session, 
+        *,
+        obj_in: CohortCreate,
+        user_id: int
     ) -> Cohort:
         """
         Create a new cohort and log the creation in the workspace history.
         """
+        try:
 
-        # Check if the workspace exists
-        workspace = db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
-        if not workspace:
-            raise ValueError(f"Workspace {obj_in.workspace_id} not found")
-        
-        # Create the cohort
-        obj_in_data = obj_in.model_dump()
-        if not obj_in_data.get("creation_date"):
-            obj_in_data["creation_date"] = datetime.now(timezone.utc)
-        db_obj = Cohort(**obj_in_data)
-        db.add(db_obj)
-        db.commit()
+            # Check if the workspace exists
+            workspace = db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
+            if not workspace:
+                raise ValueError(f"Workspace {obj_in.workspace_id} not found")
+            
+            analysis = db.query(Analysis).filter(Analysis.id == obj_in.analysis_id).first()
+            if not analysis:
+                raise ValueError(f"analysis {obj_in.analysis_id} not found")
+            
+            # Create the cohort
+            obj_in_data = obj_in.model_dump()
+            if not obj_in_data.get("creation_date"):
+                obj_in_data["creation_date"] = datetime.now(timezone.utc)
+            if not obj_in_data.get("update_date"):
+                obj_in_data["update_date"] = datetime.now(timezone.utc)
+            obj_in_data["user_id"] = user_id
+            db_obj = Cohort(**obj_in_data)
+            db.add(db_obj)
+            db.commit()
+            db.refresh(db_obj)
+            
 
-        # Log the creation in the workspace history
-        workspace = db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
-        if workspace:
+            # Log the creation in the workspace history
             history_entry = WorkspaceHistory(
                 workspace_id=workspace.id,
-                action="Cohort Created",
-                phase="Data Analysis",
+                action="Create new cohort",
+                phase="Data Analysis / Cohort Builder",
                 creator_id=user_id,
                 date=datetime.now(timezone.utc),
-                description=f"Cohort {db_obj.id} created."
+                description=f"A new cohort has been created: {db_obj.cohort_name}."
             )
             db.add(history_entry)
             db.commit()
+            db.refresh(db_obj)
+            print("DEBUG COHORT:", db_obj.__dict__)
 
-        return db_obj
+            return db_obj
+        except Exception as e:
+            db.rollback()
+            raise
 
     def get_all_cohorts(self, db: Session, skip: int = 0, limit: int = 100) -> List[Cohort]:
         """
@@ -177,3 +195,9 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         Get a cohort by its ID.
         """
         return db.query(Cohort).filter(Cohort.id == cohort_id).first()
+
+    def get_cohorts_by_analysis(self, db: Session, analysis_id: int) -> List[Cohort]:
+        """
+        Get all cohorts for a specific workspace.
+        """
+        return db.query(Cohort).filter(Cohort.analysis_id == analysis_id).all()

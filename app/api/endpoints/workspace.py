@@ -14,6 +14,8 @@ from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.user_team import UserTeam
 from app.services.workspace import workspace_service
+from app.services.analysis import analysis_service
+from app.models.analysis import Analysis
 
 router = APIRouter()
 
@@ -140,6 +142,13 @@ def delete_workspace(
             detail="Not enough permissions to delete this workspace"
         )
     
+    #  Buscar todos los cohorts relacionados con este analysis
+    analyses = db.query(Analysis).filter(Analysis.workspace_id == workspace_id).all()
+
+    # 2️ Borrar los cohorts
+    for analysis in analyses:
+        analysis_service.delete_with_history_and_cohorts(db=db, analysis_id=analysis.id, user_id=current_user.id)
+        
     deleted_workspace = workspace_service.remove(db=db, id=workspace_id)
     if not deleted_workspace:
         raise HTTPException(
