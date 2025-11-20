@@ -4,7 +4,7 @@ Main configuration of API routes
 
 from fastapi import APIRouter
 
-from app.api.endpoints import health, workspace, permit, workspace_history, auth, cohort, analysis, cohort_result
+from app.api.endpoints import health, workspace, permit, workspace_history, auth, cohort, analysis, cohort_result, data_preparation
 
 api_router = APIRouter()
 
@@ -31,3 +31,5 @@ api_router.include_router(analysis.router, prefix="/analyses", tags=["Analyses e
 
 # Workspace History endpoints
 api_router.include_router(workspace_history.router, prefix="/workspace-history", tags=["Workspace History endpoint"])
+
+api_router.include_router(data_preparation.router, prefix="/data-preparation", tags=["Data Preparation endpoint"])
