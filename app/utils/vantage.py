@@ -63,6 +63,23 @@ def create_vantage_client(
         logger.error(f"Error creating Vantage client: {e}")
         return None
 
+def create_vantage_user_client(username: str, password: str):
+    from vantage6.client import UserClient
+    
+    client = UserClient(
+        host="https://vantage6-core.orchestrator.idea.lst.tfo.upm.es",
+        port=443,
+        path="/server",
+        auth_url="https://vantage6-auth.orchestrator.idea.lst.tfo.upm.es:443",
+        auth_client="public_client",
+        auth_realm="vantage6",
+        log_level="INFO"
+    )
+
+    client.authenticate(username=username, password=password)
+
+    return client._access_token
+
 def create_vantage_organization(
     organization_data: Dict[str, Any]
 ) -> Optional[dict]:

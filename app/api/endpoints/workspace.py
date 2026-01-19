@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 
 from app import schemas
-from app.api.deps import get_current_user, get_db
+from app.api import CurrentUserContext
+from app.api.deps import get_current_user, get_db, get_current_user_with_token
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.user_team import UserTeam
@@ -32,6 +33,23 @@ def create_workspace(
     """
     workspace = workspace_service.create_with_history(
         db=db, obj_in=workspace_in, user_id=current_user.id
+    )
+    return workspace
+
+@router.post("/v2", response_model=schemas.Workspace, status_code=status.HTTP_201_CREATED)
+def create_workspace(
+    *,
+    db: Session = Depends(get_db),
+    workspace_in: schemas.WorkspaceCreateV2,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token)
+) -> Any:
+    """
+    Creates a new workspace.
+    """
+    user = current_user.user
+    access_token = current_user.access_token
+    workspace = workspace_service.create_with_history_v2(
+        db=db, obj_in=workspace_in, user_id=user.id, access_token=access_token
     )
     return workspace
 

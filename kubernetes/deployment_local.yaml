@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raven-api
+  labels:
+    app: raven-api
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: raven-api
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: raven-api
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: raven-api
+          image: sgonzmart/raven-api-dev:1.0.2
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            # --- Referencias a Secret (credenciales / sensibles) ---
+            - name: DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: raven-api-secrets
+                  key: database-uri
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: raven-api-secrets
+                  key: secret-key
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: raven-api-secrets
+                  key: keycloak-client-secret
+            - name: KEYCLOAK_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: raven-api-secrets
+                  key: keycloak-public-key
+
+            # --- Configuración no sensible (ConfigMap) ---
+            - name: PROJECT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: PROJECT_NAME
+            - name: VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: VERSION
+            - name: API_V1_STR
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: API_V1_STR
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: ENVIRONMENT
+            - name: BACKEND_CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: BACKEND_CORS_ORIGINS
+            - name: ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: ALGORITHM
+            - name: ACCESS_TOKEN_EXPIRE_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: ACCESS_TOKEN_EXPIRE_MINUTES
+            - name: ENABLE_TELEMETRY
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: ENABLE_TELEMETRY
+            - name: TELEMETRY_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: TELEMETRY_ENDPOINT
+            - name: TELEMETRY_SAMPLING_RATE
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: TELEMETRY_SAMPLING_RATE
+            - name: ENABLE_PROMETHEUS
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: ENABLE_PROMETHEUS
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: METRICS_PORT
+            - name: HOST_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: HOST_URL
+            - name: KEYCLOAK_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: KEYCLOAK_SERVER_URL
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: KEYCLOAK_REALM
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: raven-api-config
+                  key: KEYCLOAK_CLIENT_ID
+          readinessProbe:
+            httpGet:
+              path: /raven-api/v1/health/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /raven-api/v1/health/
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3

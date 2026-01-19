@@ -54,7 +54,7 @@ class AnalysisService(BaseService[Analysis, AnalysisCreate, AnalysisUpdate]):
             date=datetime.now(timezone.utc),
             action="Analysis created",
             phase="Data Analysis",
-            description=f"Analysis '{db_obj.analysis_name}' has been created",
+            description=f"A new analysis has been created: '{db_obj.analysis_name}'",
             creator_id=user_id,
             workspace_id=obj_in.workspace_id
         )

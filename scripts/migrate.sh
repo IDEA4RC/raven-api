@@ -1,6 +1,19 @@
 #!/bin/bash
 
 set -euo pipefail
+IS_WINDOWS="false"
+case "$(uname -s)" in
+    MINGW*|CYGWIN*|MSYS*)
+        IS_WINDOWS="true"
+        ;;
+esac
+
+if [ "$IS_WINDOWS" = "true" ]; then
+    EXEC_SHELL="//bin/sh"
+else
+    EXEC_SHELL="/bin/sh"
+fi
+
 
 NAMESPACE="raven-api"
 KUBECTL=""
@@ -115,14 +128,14 @@ migrate_db() {
         echo -e "${BLUE}🔍 Pod API: ${API_POD}${NC}"
         echo -e "${BLUE}🔍 Pod Postgres: ${POSTGRES_POD}${NC}"
         echo -e "${BLUE}🔍 Variables de entorno relevantes:${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'echo DATABASE_URI=$DATABASE_URI; echo API_V1_STR=$API_V1_STR' || true
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'echo DATABASE_URI=$DATABASE_URI; echo API_V1_STR=$API_V1_STR' || true
         echo -e "${BLUE}🔍 Comprobando conectividad a Postgres desde API (timeout 3s)...${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'command -v nc >/dev/null && nc -vz -w 3 postgres-service 5432 || echo "nc no disponible"' || true
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'command -v nc >/dev/null && nc -vz -w 3 postgres-service 5432 || echo "nc no disponible"' || true
     fi
 
     # Ejecutar migraciones con salida no bufferizada
     echo -e "${BLUE}🚚 Ejecutando: alembic upgrade head${NC}"
-    if ! ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'PYTHONUNBUFFERED=1 alembic upgrade head'; then
+    if ! ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} -c 'PYTHONUNBUFFERED=1 alembic upgrade head'; then
         echo -e "${RED}❌ Error al ejecutar migraciones${NC}"
         if [ "$DEBUG" = "true" ]; then
             echo -e "${BLUE}📄 Log de la API (últimas 50 líneas)${NC}"
@@ -190,6 +203,71 @@ seed_db() {
     echo -e "${GREEN}✅ Seeding completado correctamente${NC}"
 }
 
+seed_db_organizations(){
+    echo -e "${YELLOW}🌱 Insertando datos iniciales en organizations...${NC}"
+    
+    resolve_kubectl
+    POSTGRES_POD=$(get_postgres_pod)
+    if [ -z "$POSTGRES_POD" ]; then
+        echo -e "${RED}❌ No se encontró el pod de PostgreSQL${NC}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}🔎 Comprobando existencia de tabla organizations...${NC}"
+    if ! ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -v ON_ERROR_STOP=1 -U raven_user -d raven_db -c "SELECT 1 FROM information_schema.tables WHERE table_name='organizations';" >/dev/null; then
+        echo -e "${RED}❌ La tabla organizations no existe. ¿Has ejecutado primero 'migrate'?${NC}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}🚀 Ejecutando upsert de organizations...${NC}"
+    ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -v ON_ERROR_STOP=1 -U raven_user -d raven_db -c "
+        INSERT INTO organizations (
+            id, org_name, description, org_city, org_type
+        ) VALUES
+            (1, 'INT', 'Fondazione IRCCS Istituto Nazionale dei Tumori', 'IT', 1),
+            (2, 'UDEUSTO', 'Universidad de la Iglesia de Deusto Entidad Religiosa', 'ES', 2),
+            (3, 'MME', 'MULTIMED ENGINEERS SRL', 'IT', 2),
+            (4, 'UPM', 'UNIVERSIDAD POLITECNICA DE MADRID', 'ES', 2),
+            (5, 'HL7 Europe', 'HL7 INTERNATIONAL FONDATION', 'BE', 2),
+            (6, 'ECCP', 'EUROPEAN CENTRE FOR CERTIFICATION AND PRIVACY', 'LU', 2),
+            (7, 'ENG', 'ENGINEERING - INGEGNERIA INFORMATICA SPA', 'IT', 2),
+            (8, 'CERTH', 'ETHNIKO KENTRO EREVNAS KAI TECHNOLOGIKIS ANAPTYXIS', 'EL', 2),
+            (9, 'UU', 'UNIVERSITEIT UTRECHT', 'NL', 2),
+            (10, 'DIGICOR', 'DIGITAL INSTITUTE FOR CANCER OUTCOMES RESEARCH', 'BE', 2),
+            (11, 'FBK', 'FONDAZIONE BRUNO KESSLER', 'IT', 2),
+            (12, 'IKNL', 'STICHTING INTEGRAAL KANKERCENTRUM NEDERLAND', 'NL', 2),
+            (13, 'CLB', 'CENTRE DE LUTTE CONTRE LE CANCER LEON BERARD', 'FR',1),
+            (14, 'APHP', 'ASSISTANCE PUBLIQUE HOPITAUX DE PARIS', 'FR', 1),
+            (15, 'IIS-FJD', 'INSTITUTO INVESTIGACION SANITARIA FUNDACION JIMENEZ DIAZ', 'ES', 1),
+            (16, 'VGR', 'VÄSTRA GÖTALANDSREGIONEN', 'SE', 1),
+            (17, 'MSCI', 'Narodowy Instytut Onkologii im. Marii Sklodowskiej-Curie - Panstwowy Instytut Badawczy', 'PL', 1),
+            (18, 'MUH', 'FAKULTNI NEMOCNICE V MOTOLE', 'CZ',1),
+            (19, 'OUS', 'OSLO UNIVERSITETSSYKEHUS HF', 'NO', 1),
+            (20, 'MMCI', 'MASARYKUV ONKOLOGICKY USTAV', 'CZ', 1),
+            (21, 'CLN', 'CLININOTE SPOLKA Z OGRANICZONA ODPOWIEDZIALNOSCIA', 'PL', 2),
+            (22, 'FPNS', 'FUNDACION PROFESOR NOVOA SANTOS', 'ES', 1),
+            (23, 'TNO', 'NEDERLANDSE ORGANISATIE VOOR TOEGEPAST NATUURWETENSCHAPPELIJK ONDERZOEK TNO', 'NL', 2),
+            (24, 'INF', 'INFERENZE SOC. COOP', 'IT', 2),
+            (25, 'UKE', 'UNIVERSITAETSKLINIKUM ESSEN ', 'DE', 1)
+
+           
+        ON CONFLICT (id) DO UPDATE SET
+            org_name = EXCLUDED.org_name,
+            description = EXCLUDED.description,
+            org_city = EXCLUDED.org_city,
+            org_type = EXCLUDED.org_type;
+    "
+
+    echo -e "${BLUE}🧪 Verificando filas insertadas...${NC}"
+    ROW_COUNT=$(${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U raven_user -d raven_db -t -A -c "SELECT COUNT(*) FROM organizations;" | tr -d '\r')
+    echo -e "${BLUE}📊 Total filas en organizations: ${ROW_COUNT}${NC}"
+
+    echo -e "${BLUE}📄 Listado de filas:${NC}"
+    ${KUBECTL} exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U raven_user -d raven_db -c "SELECT id, org_name, org_city, org_type FROM organizations ORDER BY id;"
+
+    echo -e "${GREEN}✅ Seeding completado correctamente${NC}"
+}
+
 diagnose() {
     echo -e "${YELLOW}🩺 Diagnóstico de entorno de migraciones...${NC}"
     resolve_kubectl
@@ -219,19 +297,19 @@ diagnose() {
 
     if [ -n "$API_POD" ]; then
         echo -e "${BLUE}🔧 Version Alembic dentro de API:${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'alembic --version 2>/dev/null || echo "alembic no disponible"'
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'alembic --version 2>/dev/null || echo "alembic no disponible"'
         echo ""
         echo -e "${BLUE}⚙️  Variables de entorno relevantes:${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'echo DATABASE_URI=$DATABASE_URI; echo API_V1_STR=$API_V1_STR'
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'echo DATABASE_URI=$DATABASE_URI; echo API_V1_STR=$API_V1_STR'
         echo ""
         echo -e "${BLUE}🛣  Alembic current:${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'alembic current || true'
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'alembic current || true'
         echo ""
         echo -e "${BLUE}🗂  Alembic history (últimas 10):${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'alembic history | tail -n 20 || true'
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'alembic history | tail -n 20 || true'
         echo ""
         echo -e "${BLUE}🔌 Test conexión a Postgres (nc 3s):${NC}"
-        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- /bin/sh -c 'command -v nc >/dev/null && nc -vz -w 3 postgres-service 5432 || echo "nc no disponible"' || true
+        ${KUBECTL} exec -n "$NAMESPACE" "$API_POD" -- ${EXEC_SHELL} 'command -v nc >/dev/null && nc -vz -w 3 postgres-service 5432 || echo "nc no disponible"' || true
         echo ""
         echo -e "${BLUE}📄 Últimos logs API (50):${NC}"
         ${KUBECTL} logs -n "$NAMESPACE" "$API_POD" --tail=50 || true
@@ -332,6 +410,9 @@ case "${ACTION}" in
         ;;
     "seed")
         seed_db
+        ;;
+    "seed_organizations")
+        seed_db_organizations
         ;;
     "clean")
         clean_db

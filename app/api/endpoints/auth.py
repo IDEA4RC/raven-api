@@ -13,6 +13,7 @@ from app import schemas
 from app.services.auth import AuthService
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.user_type import UserType
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,6 @@ def login(
                 detail="Username and password cannot be empty"
             )
         result = auth_service.authenticate(form_data.username, form_data.password)
-        
         # Get user information from Keycloak using the access token
         from app.utils.keycloak import keycloak_handler
         access_token = result.get("access_token")
@@ -70,6 +70,13 @@ def login(
             )
             
         user = db.query(User).filter(User.keycloak_id == keycloak_id).first()
+        org_name = user_info.get("coe_name")
+        org_id = None 
+        if org_name:
+            org = db.query(Organization).filter(Organization.org_name == org_name).first()
+            if org:
+                org_id = org.id
+
         if not user:
             # Get default user type for new users
             default_user_type_id = None
@@ -86,14 +93,15 @@ def login(
                     logger.warning(f"Using fallback user type: {any_user_type.description} (ID: {any_user_type.id})")
                 else:
                     logger.warning("No user types found in database, creating user without user_type_id")
-            
+            user_info.coe_name = user_info.get("preferred_username", "unknown")
             user = User(
                 keycloak_id=keycloak_id,
                 username=form_data.username,
                 email=user_info.get("email", ""),
                 first_name=user_info.get("given_name", ""),
                 last_name=user_info.get("family_name", ""),
-                user_type_id=default_user_type_id
+                user_type_id=default_user_type_id,
+                organization_id=org_id
             )
             db.add(user)
             db.commit()
@@ -134,6 +142,11 @@ def login(
                     user.user_type_id = default_user_type.id
                 needs_update = True
             
+            if user.organization_id != org_id:
+                user.organization_id = org_id
+                needs_update = True
+
+                
             # Save changes if any updates were made
             if needs_update:
                 db.commit()

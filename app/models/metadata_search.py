@@ -2,7 +2,7 @@
 MetadataSearch model for the database
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, ARRAY, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -19,6 +19,9 @@ class MetadataSearch(Base):
     type_cancer = Column(String)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
     status = Column(String)
+
+    id_variables = Column(ARRAY(Text), default=list)
+    selected_id_coes = Column(ARRAY(Text), default=list)
     
     # Relationships
     workspace = relationship("Workspace", back_populates="metadata_searches")

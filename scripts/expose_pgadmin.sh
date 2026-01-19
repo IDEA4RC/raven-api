@@ -1,0 +1,1 @@
+kubectl -n raven-api port-forward svc/pgadmin-service 8081:80

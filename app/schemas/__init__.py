@@ -7,7 +7,7 @@ from app.schemas.user_type import UserType, UserTypeCreate, UserTypeUpdate
 from app.schemas.user import User, UserCreate, UserUpdate, UserInDB
 from app.schemas.team import Team, TeamCreate, TeamUpdate
 from app.schemas.permit import Permit, PermitCreate, PermitUpdate
-from app.schemas.workspace import Workspace, WorkspaceCreate, WorkspaceUpdate
+from app.schemas.workspace import Workspace, WorkspaceCreate, WorkspaceUpdate, WorkspaceCreateV2
 from app.schemas.workspace_history import WorkspaceHistory, WorkspaceHistoryCreate
 from app.schemas.token import Token, TokenPayload
 from app.schemas.analysis import Analysis, AnalysisCreate, AnalysisUpdate
@@ -20,7 +20,7 @@ __all__ = [
     "User", "UserCreate", "UserUpdate", "UserInDB",
     "Team", "TeamCreate", "TeamUpdate",
     "Permit", "PermitCreate", "PermitUpdate",
-    "Workspace", "WorkspaceCreate", "WorkspaceUpdate",
+    "Workspace", "WorkspaceCreate", "WorkspaceUpdate", "WorkspaceCreateV2"
     "WorkspaceHistory", "WorkspaceHistoryCreate",
     "Token", "TokenPayload", "Analysis", "AnalysisCreate", "AnalysisUpdate",
     "Cohort", "CohortCreate", "CohortUpdate",

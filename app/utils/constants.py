@@ -28,3 +28,10 @@ class CohortStatus(int, Enum):
     """Estados posibles para un cohort"""
     CREATED = 0
     EXECUTED = 1
+    ERROR = 2
+
+class MetadataStatus(int, Enum):
+    """Estados posibles para los metadatos de datos"""
+    PENDING = 0
+    INITIATED = 1
+    COMPLETED = 2
