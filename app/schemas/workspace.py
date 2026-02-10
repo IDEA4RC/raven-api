@@ -48,6 +48,12 @@ class WorkspaceUpdate(BaseModel):
     team_ids: Optional[List[str]] = None
 
 
+class WorkspaceUpdateVantage6Study(BaseModel):
+    """Schema para actualizar un espacio de trabajo."""
+    v6_study_id: Optional[str] = None
+    v6_session_id: Optional[str] = None
+    last_modification_date: datetime
+
 class Workspace(WorkspaceBase):
     """Schema para leer un espacio de trabajo."""
     id: int

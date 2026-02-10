@@ -13,6 +13,9 @@ from app.schemas.token import Token, TokenPayload
 from app.schemas.analysis import Analysis, AnalysisCreate, AnalysisUpdate
 from app.schemas.cohort import Cohort, CohortCreate, CohortUpdate
 from app.schemas.cohort_result import CohortResult, CohortResultCreate, CohortResultUpdate
+from app.schemas.data_preparation import DataPreparationRequest,  V6TaskResult, V6RunResult, V6GetStatus
+from app.schemas.metadata_search import MetadataSearch
+
 
 __all__ = [
     "Organization", "OrganizationCreate", "OrganizationUpdate",
@@ -24,5 +27,6 @@ __all__ = [
     "WorkspaceHistory", "WorkspaceHistoryCreate",
     "Token", "TokenPayload", "Analysis", "AnalysisCreate", "AnalysisUpdate",
     "Cohort", "CohortCreate", "CohortUpdate",
-    "CohortResult", "CohortResultCreate", "CohortResultUpdate"
+    "CohortResult", "CohortResultCreate", "CohortResultUpdate", "DataPreparation"
+    "V6TaskResult", "V6RunResult", "MetadataSearch", "V6GetStatus"
 ] 

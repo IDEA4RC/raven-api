@@ -2,46 +2,39 @@
 Service for handling permit operations
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
-
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
-from app.models.permit import Permit
-from app.models.workspace import Workspace
-from app.models.workspace_history import WorkspaceHistory
-from app.schemas.metadata_search import MetadataSearch
+from app.models.metadata_search import MetadataSearch
+from app.schemas.metadata_search import (
+    MetadataSearchBase,
+    MetadataSearchCreate,
+    MetadataSearchUpdate,
+)
 from app.services.base import BaseService
-from app.utils.constants import PermitStatus, DataAccessStatus
 
 
-class MetadataSearchService(BaseService[MetadataSearch]):
+class MetadataSearchService(BaseService[MetadataSearch, None, None]):
     """
     Service for handling metadata search operations
     """
 
-    model = MetadataSearch
-
-    def get_permit_metadata_search(
-        self,
-        db: Session,
-        permit_number: str,
-        workspace_id: Optional[int] = None
-    ) -> List[MetadataSearch]:
+    def get_metadata_search_by_workspace(
+        self, db: Session, *, workspace_id: int
+    ) -> MetadataSearch:
         """
-        Get metadata search records for a given permit number and optional workspace ID.
+        Get metadata search records for a given  workspace ID.
 
         :param db: Database session
-        :param permit_number: Permit number to filter by
-        :param workspace_id: Optional workspace ID to filter by
-        :return: List of MetadataSearch records
+        :param workspace_id: workspace ID to filter by
+        :return: MetadataSearch records
         """
-        query = db.query(MetadataSearch).join(Permit).filter(
-            Permit.permit_number == permit_number
+        metadata_search = (
+            db.query(MetadataSearch)
+            .filter(MetadataSearch.workspace_id == workspace_id)
+            .one()
         )
 
-        if workspace_id is not None:
-            query = query.filter(MetadataSearch.workspace_id == workspace_id)
+        return metadata_search
 
-        return query.all()
+
+metadata_search_service = MetadataSearchService(MetadataSearch)

@@ -22,6 +22,7 @@ class Cohort(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     analysis_id = Column(Integer, ForeignKey("analyses.id", ondelete="CASCADE"))
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"))
+    dataframe_vantage_id = Column(Integer)
     
     # Relationships
     user = relationship("User")

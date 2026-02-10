@@ -27,6 +27,7 @@ class CohortUpdate(BaseModel):
     cohort_description: Optional[str] = None
     cohort_query: Optional[str] = None
     status: Optional[int] = None
+    dataframe_vantage_id: Optional[int]= None
     
 class Cohort(CohortBase):
     id: int

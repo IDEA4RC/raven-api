@@ -4,6 +4,7 @@ Endpoints to check the service status
 
 from typing import Any, List
 
+from app.models.permit import Permit
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import any_
@@ -11,9 +12,8 @@ from sqlalchemy import any_
 from app import schemas
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.models.metadata_search import MetadataSearch
 from app.services.metadata_search import metadata_search_service
-
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 router = APIRouter()
 
 
@@ -25,17 +25,27 @@ async def metadata_search():
     """
     return {"status": "ok", "message": "The service is working correctly"}
 
-@router.get("/workspace/{workspace_id}", response_model=List[schemas.Permit])
+@router.get("/workspace/{workspace_id}", response_model=schemas.MetadataSearch)
 def get_permits_by_workspace(
     *,
     db: Session = Depends(get_db),
     workspace_id: int,
-    current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Obtains all permits for a workspace.
     """
-    permits = db.query(Permit)\
-        .filter(Permit.workspace_id == workspace_id)\
-        .all()
-    return permits
+    try:
+        return metadata_search_service.get_metadata_search_by_workspace(
+        db=db,
+        workspace_id=workspace_id,
+        )
+    except NoResultFound:
+        raise HTTPException(
+        status_code=404,
+        detail="Metadata search not found for workspace",
+        )
+    except MultipleResultsFound:
+        raise HTTPException(
+        status_code=500,
+        detail="Multiple metadata records found for workspace",
+        )

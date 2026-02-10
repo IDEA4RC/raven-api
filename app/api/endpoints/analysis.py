@@ -8,9 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app import schemas
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_current_user_with_token
 from app.models.user import User
 from app.services.analysis import analysis_service
+from app.api import CurrentUserContext
+from app.utils.constants import TOKEN_V6
 
 router = APIRouter()
 
@@ -20,7 +22,7 @@ def create_analysis(
     *,
     db: Session = Depends(get_db),
     analysis_in: schemas.AnalysisCreate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Creates a new analysis for a workspace.
@@ -31,10 +33,33 @@ def create_analysis(
         )
         return analysis
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/create_analysis",
+    response_model=schemas.Analysis,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_analysis(
+    *,
+    db: Session = Depends(get_db),
+    analysis_in: schemas.AnalysisCreate,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Creates a new analysis for a workspace.
+    """
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        analysis = analysis_service.create_with_history_v2(
+            db=db, obj_in=analysis_in, user_id=user.id, access_token=TOKEN_V6
         )
+        return analysis
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/")
@@ -43,7 +68,7 @@ def get_analyses(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all analyses with pagination.
@@ -63,7 +88,11 @@ def get_analyses(
             "creation_date",
             "update_date",
         ]
-        return {k: getattr(a, k) for k in fields if hasattr(a, k) and getattr(a, k) is not None}
+        return {
+            k: getattr(a, k)
+            for k in fields
+            if hasattr(a, k) and getattr(a, k) is not None
+        }
 
     return [serialize(a) for a in analyses]
 
@@ -73,7 +102,7 @@ def get_analysis(
     *,
     db: Session = Depends(get_db),
     analysis_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains an analysis by ID.
@@ -82,7 +111,7 @@ def get_analysis(
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Analysis with ID {analysis_id} not found"
+            detail=f"Analysis with ID {analysis_id} not found",
         )
     return analysis
 
@@ -93,7 +122,7 @@ def update_analysis(
     db: Session = Depends(get_db),
     analysis_id: int,
     analysis_in: schemas.analysis.AnalysisUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Updates an analysis (PATCH operation).
@@ -105,10 +134,7 @@ def update_analysis(
         )
         return analysis
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -116,7 +142,7 @@ def delete_analysis(
     *,
     db: Session = Depends(get_db),
     analysis_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """
     Deletes an analysis.
@@ -126,10 +152,7 @@ def delete_analysis(
             db=db, analysis_id=analysis_id, user_id=current_user.id
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/workspace/{workspace_id}", response_model=List[schemas.analysis.Analysis])
@@ -137,12 +160,14 @@ def get_analyses_by_workspace(
     *,
     db: Session = Depends(get_db),
     workspace_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all analyses for a workspace.
     """
-    analyses = analysis_service.get_analyses_by_workspace(db=db, workspace_id=workspace_id)
+    analyses = analysis_service.get_analyses_by_workspace(
+        db=db, workspace_id=workspace_id
+    )
     return analyses
 
 
@@ -153,7 +178,7 @@ def get_analyses_by_user(
     user_id: int,
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all analyses for a specific user with pagination.
@@ -170,7 +195,7 @@ def get_expired_analyses(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all expired analyses.
@@ -183,10 +208,15 @@ def get_expired_analyses(
 def get_analyses_expiring_soon(
     *,
     db: Session = Depends(get_db),
-    days: int = Query(7, ge=1, le=365, description="Number of days to look ahead for expiring analyses"),
+    days: int = Query(
+        7,
+        ge=1,
+        le=365,
+        description="Number of days to look ahead for expiring analyses",
+    ),
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all analyses expiring within the specified number of days.
@@ -204,7 +234,7 @@ def get_my_analyses(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all analyses for the current authenticated user.

@@ -12,6 +12,9 @@ from app.api.routes import api_router
 from app.config.settings import settings
 from app.utils.telemetry import setup_telemetry
 
+import logging
+import sys
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Configuration at application startup
@@ -80,3 +83,16 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/raven-api/v1", tags=["Root"])
 async def root():
     return {"message": "Welcome to the RAVEN API v1. For documentation, visit /docs or /redoc."}
+
+# Configurar logging global
+logging.basicConfig(
+    level=logging.DEBUG, # DEBUG si quieres ver todo
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
+
+
+# Reutilizar estos handlers para uvicorn (FastAPI)
+logging.getLogger("uvicorn").handlers = logging.getLogger().handlers
+logging.getLogger("uvicorn.error").handlers = logging.getLogger().handlers
+logging.getLogger("uvicorn.access").handlers = logging.getLogger().handlers

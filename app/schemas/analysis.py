@@ -22,6 +22,7 @@ class AnalysisUpdate(BaseModel):
     analysis_name: Optional[str] = None
     analysis_description: Optional[str] = None
     expiring_date: Optional[datetime] = None
+    session_id_vantage: Optional[int] = None
 
 
 class Analysis(AnalysisBase):

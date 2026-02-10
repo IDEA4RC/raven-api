@@ -8,12 +8,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import schemas
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_current_user_with_token
 from app.models.user import User
+from app.api import CurrentUserContext
+
 from app.models.cohort import Cohort
 from app.services.cohort import CohortService
 
 router = APIRouter()
+from app.utils.constants import TOKEN_V6
 
 # Initialize the cohort service
 cohort_service = CohortService(Cohort)
@@ -184,3 +187,27 @@ def get_cohorts_by_analysis(
     """
     cohorts = cohort_service.get_cohorts_by_analysis(db=db, analysis_id=analysis_id_in)
     return cohorts
+
+@router.post("/create_vantage", response_model=schemas.Cohort, status_code=status.HTTP_201_CREATED)
+def create_cohort(
+    *,
+    db: Session = Depends(get_db),
+    cohort_in: schemas.CohortCreate,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token)
+) -> Any:
+    """
+    Creates a new cohort for a workspace.
+    """
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        cohort = cohort_service.create_with_history_v2(
+            db=db, obj_in=cohort_in, user_id=user.id, access_token=TOKEN_V6
+        )
+        return cohort
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )

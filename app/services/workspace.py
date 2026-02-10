@@ -78,8 +78,7 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         *,
         obj_in: WorkspaceCreateV2,
         user_id: int, 
-        access_token: str
-    ) -> Workspace:
+   ) -> Workspace:
         """
         Create a new workspace and log the event in the workspace history.
         """
@@ -153,8 +152,6 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         db.commit()
         db.refresh(db_obj)
 
-        db_obj["access_token"] = access_token  # Store access token if needed
-
         return db_obj
 
     def update_data_access(
@@ -214,6 +211,20 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
         db.refresh(workspace_history)
 
         return updated_workspace
+
+    def get_workspace(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        
+    ) -> Workspace:
+        """
+        Update the data access status of a workspace and log the change
+        """
+        # Get the workspace
+        workspace = self.get(db, workspace_id)
+        return workspace
 
 
 workspace_service = WorkspaceService(Workspace)

@@ -15,16 +15,16 @@ from app.models.workspace_history import WorkspaceHistory
 from app.schemas.cohort import CohortCreate, CohortUpdate, CohortStatusUpdate
 from app.services.base import BaseService
 from app.utils.constants import CohortStatus
+from app.services.vantage_6 import vantage6_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
 
     def create_with_history(
-        self, 
-        db: Session, 
-        *,
-        obj_in: CohortCreate,
-        user_id: int
+        self, db: Session, *, obj_in: CohortCreate, user_id: int
     ) -> Cohort:
         """
         Create a new cohort and log the creation in the workspace history.
@@ -32,14 +32,18 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         try:
 
             # Check if the workspace exists
-            workspace = db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
+            workspace = (
+                db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
+            )
             if not workspace:
                 raise ValueError(f"Workspace {obj_in.workspace_id} not found")
-            
-            analysis = db.query(Analysis).filter(Analysis.id == obj_in.analysis_id).first()
+
+            analysis = (
+                db.query(Analysis).filter(Analysis.id == obj_in.analysis_id).first()
+            )
             if not analysis:
                 raise ValueError(f"analysis {obj_in.analysis_id} not found")
-            
+
             # Create the cohort
             obj_in_data = obj_in.model_dump()
             if not obj_in_data.get("creation_date"):
@@ -51,7 +55,6 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
-            
 
             # Log the creation in the workspace history
             history_entry = WorkspaceHistory(
@@ -60,19 +63,19 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
                 phase="Data Analysis / Cohort Builder",
                 creator_id=user_id,
                 date=datetime.now(timezone.utc),
-                description=f"A new cohort has been created: {db_obj.cohort_name}."
+                description=f"A new cohort has been created: {db_obj.cohort_name}.",
             )
             db.add(history_entry)
             db.commit()
             db.refresh(db_obj)
-            print("DEBUG COHORT:", db_obj.__dict__)
-
             return db_obj
         except Exception as e:
             db.rollback()
             raise
 
-    def get_all_cohorts(self, db: Session, skip: int = 0, limit: int = 100) -> List[Cohort]:
+    def get_all_cohorts(
+        self, db: Session, skip: int = 0, limit: int = 100
+    ) -> List[Cohort]:
         """
         Get all cohorts with pagination.
         """
@@ -83,7 +86,7 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         Get all cohorts for a specific workspace.
         """
         return db.query(Cohort).filter(Cohort.workspace_id == workspace_id).all()
-    
+
     def update_cohort_status(
         self, db: Session, obj_in: CohortStatusUpdate, cohort_id: int, user_id: int
     ) -> Cohort:
@@ -103,7 +106,9 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         db.commit()
 
         # Log the status change in the workspace history
-        workspace = db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        workspace = (
+            db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        )
         if workspace:
             history_entry = WorkspaceHistory(
                 workspace_id=workspace.id,
@@ -111,15 +116,17 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
                 phase="Data Analysis",
                 creator_id=user_id,
                 date=datetime.now(timezone.utc),
-                description=f"Cohort {cohort.id} status updated to {cohort.status}."
+                description=f"Cohort {cohort.id} status updated to {cohort.status}.",
             )
             db.add(history_entry)
             db.commit()
         else:
-            raise ValueError(f"Workspace {cohort.workspace_id} not found for cohort {cohort_id}")
+            raise ValueError(
+                f"Workspace {cohort.workspace_id} not found for cohort {cohort_id}"
+            )
 
         return cohort
-    
+
     def update_cohort(
         self, db: Session, obj_in: CohortUpdate, cohort_id: int, user_id: int
     ) -> Cohort:
@@ -133,15 +140,17 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         # Update the cohort fields
         for field, value in obj_in.model_dump(exclude_unset=True).items():
             setattr(cohort, field, value)
-        
+
         if not obj_in.update_date:
             cohort.update_date = datetime.now(timezone.utc)
-        
+
         db.add(cohort)
         db.commit()
 
         # Log the update in the workspace history
-        workspace = db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        workspace = (
+            db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        )
         if workspace:
             history_entry = WorkspaceHistory(
                 workspace_id=workspace.id,
@@ -149,18 +158,18 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
                 phase="Data Analysis",
                 creator_id=user_id,
                 date=datetime.now(timezone.utc),
-                description=f"Cohort {cohort.id} updated."
+                description=f"Cohort {cohort.id} updated.",
             )
             db.add(history_entry)
             db.commit()
         else:
-            raise ValueError(f"Workspace {cohort.workspace_id} not found for cohort {cohort_id}")
+            raise ValueError(
+                f"Workspace {cohort.workspace_id} not found for cohort {cohort_id}"
+            )
 
         return cohort
-    
-    def delete_cohort(
-        self, db: Session, cohort_id: int, user_id: int
-    ) -> None:
+
+    def delete_cohort(self, db: Session, cohort_id: int, user_id: int) -> None:
         """
         Delete a cohort and log the deletion in the workspace history.
         """
@@ -172,7 +181,9 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         db.commit()
 
         # Log the deletion in the workspace history
-        workspace = db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        workspace = (
+            db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        )
         if workspace:
             history_entry = WorkspaceHistory(
                 workspace_id=workspace.id,
@@ -180,17 +191,17 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
                 phase="Data Analysis",
                 creator_id=user_id,
                 date=datetime.now(timezone.utc),
-                description=f"Cohort {cohort.id} deleted."
+                description=f"Cohort {cohort.id} deleted.",
             )
             db.add(history_entry)
             db.commit()
         else:
-            raise ValueError(f"Workspace {cohort.workspace_id} not found for cohort {cohort_id}")
+            raise ValueError(
+                f"Workspace {cohort.workspace_id} not found for cohort {cohort_id}"
+            )
         return None
-    
-    def get_cohort_by_id(
-        self, db: Session, cohort_id: int
-    ) -> Optional[Cohort]:
+
+    def get_cohort_by_id(self, db: Session, cohort_id: int) -> Optional[Cohort]:
         """
         Get a cohort by its ID.
         """
@@ -201,3 +212,72 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         Get all cohorts for a specific workspace.
         """
         return db.query(Cohort).filter(Cohort.analysis_id == analysis_id).all()
+
+    def create_with_history_v2(
+        self,
+        db: Session,
+        *,
+        obj_in: CohortCreate,
+        user_id: int,
+        access_token: str,
+    ) -> Cohort:
+        """
+        Create a new cohort and log the creation in the workspace history.
+        """
+        try:
+
+            # Check if the workspace exists
+            workspace = (
+                db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
+            )
+            if not workspace:
+                raise ValueError(f"Workspace {obj_in.workspace_id} not found")
+
+            analysis = (
+                db.query(Analysis).filter(Analysis.id == obj_in.analysis_id).first()
+            )
+            if not analysis:
+                raise ValueError(f"analysis {obj_in.analysis_id} not found")
+
+            # Create the cohort
+            obj_in_data = obj_in.model_dump()
+            if not obj_in_data.get("creation_date"):
+                obj_in_data["creation_date"] = datetime.now(timezone.utc)
+            if not obj_in_data.get("update_date"):
+                obj_in_data["update_date"] = datetime.now(timezone.utc)
+            obj_in_data["user_id"] = user_id
+            db_obj = Cohort(**obj_in_data)
+            db.add(db_obj)
+            db.commit()
+            db.refresh(db_obj)
+
+            # Log the creation in the workspace history
+            history_entry = WorkspaceHistory(
+                workspace_id=workspace.id,
+                action="Create new cohort",
+                phase="Data Analysis / Cohort Builder",
+                creator_id=user_id,
+                date=datetime.now(timezone.utc),
+                description=f"A new cohort has been created: {db_obj.cohort_name}.",
+            )
+            db.add(history_entry)
+            db.commit()
+            db.refresh(db_obj)
+
+            dataframe_id = vantage6_service.create_new_cohort(
+                access_token=access_token,
+                session_id=analysis.session_id_vantage,
+                features="sarcoma",
+            )
+            logger.info("[V6] create_new_cohort dataframe_id=%s", dataframe_id)
+
+            updated_cohort = CohortUpdate(
+                dataframe_vantage_id=dataframe_id,
+                last_modification_date=datetime.now(timezone.utc),
+            )
+            updated_cohort_done = self.update(db, db_obj=db_obj, obj_in=updated_cohort)
+
+            return updated_cohort_done
+        except Exception as e:
+            db.rollback()
+            raise

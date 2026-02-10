@@ -13,10 +13,14 @@ from app.api import CurrentUserContext
 from app.api.deps import get_current_user, get_db, get_current_user_with_token
 from app.models.user import User
 from app.models.workspace import Workspace
+from app.schemas.workspace import WorkspaceCreateV2
+
 from app.models.user_team import UserTeam
 from app.services.workspace import workspace_service
 from app.services.analysis import analysis_service
+from app.services.analysis_orchestrator import workspace_orchestrator_service
 from app.models.analysis import Analysis
+from app.utils.constants import TOKEN_V6
 
 router = APIRouter()
 
@@ -26,7 +30,7 @@ def create_workspace(
     *,
     db: Session = Depends(get_db),
     workspace_in: schemas.WorkspaceCreate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Creates a new workspace.
@@ -36,20 +40,26 @@ def create_workspace(
     )
     return workspace
 
-@router.post("/v2", response_model=schemas.Workspace, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/create_workspace",
+    response_model=schemas.Workspace,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_workspace(
     *,
     db: Session = Depends(get_db),
-    workspace_in: schemas.WorkspaceCreateV2,
-    current_user: CurrentUserContext = Depends(get_current_user_with_token)
+    workspace_in: WorkspaceCreateV2,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
     """
     Creates a new workspace.
     """
+
     user = current_user.user
     access_token = current_user.access_token
-    workspace = workspace_service.create_with_history_v2(
-        db=db, obj_in=workspace_in, user_id=user.id, access_token=access_token
+    workspace = workspace_orchestrator_service.create_workspace_full(
+        db=db, workspace_in=workspace_in, user_id=user.id, access_token=TOKEN_V6
     )
     return workspace
 
@@ -59,7 +69,7 @@ def get_workspace(
     *,
     db: Session = Depends(get_db),
     workspace_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains a workspace by ID.
@@ -68,7 +78,7 @@ def get_workspace(
     if not workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Workspace with ID {workspace_id} not found"
+            detail=f"Workspace with ID {workspace_id} not found",
         )
     return workspace
 
@@ -79,8 +89,10 @@ def get_workspaces(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    user_id: Optional[str] = Query(None, description="Filter by user_id (creator_id or team member)"),
-    current_user: User = Depends(get_current_user)
+    user_id: Optional[str] = Query(
+        None, description="Filter by user_id (creator_id or team member)"
+    ),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains the list of workspaces with optional filtering by user_id.
@@ -101,13 +113,15 @@ def get_workspaces(
         query = db.query(Workspace)
 
         user_team_ids = [
-            str(team_id[0]) for team_id in
-            db.query(UserTeam.team_id).filter(UserTeam.user_id == user_id_int).all()
+            str(team_id[0])
+            for team_id in db.query(UserTeam.team_id)
+            .filter(UserTeam.user_id == user_id_int)
+            .all()
         ]
 
         creator_filter = Workspace.creator_id == user_id_int
         if user_team_ids:
-            team_filter = Workspace.team_ids.op('&&')(user_team_ids)
+            team_filter = Workspace.team_ids.op("&&")(user_team_ids)
             query = query.filter(or_(creator_filter, team_filter))
         else:
             query = query.filter(creator_filter)
@@ -131,7 +145,11 @@ def get_workspaces(
             "v6_study_id",
             "status",
         ]
-        return {k: getattr(w, k) for k in fields if hasattr(w, k) and getattr(w, k) is not None}
+        return {
+            k: getattr(w, k)
+            for k in fields
+            if hasattr(w, k) and getattr(w, k) is not None
+        }
 
     return [serialize(w) for w in workspaces]
 
@@ -141,7 +159,7 @@ def delete_workspace(
     *,
     db: Session = Depends(get_db),
     workspace_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """
     Deletes a workspace by ID.
@@ -150,28 +168,30 @@ def delete_workspace(
     if not workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Workspace with ID {workspace_id} not found"
+            detail=f"Workspace with ID {workspace_id} not found",
         )
-    
+
     # Check if user has permission to delete (could be creator or admin)
     if workspace.creator_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions to delete this workspace"
+            detail="Not enough permissions to delete this workspace",
         )
-    
+
     #  Buscar todos los cohorts relacionados con este analysis
     analyses = db.query(Analysis).filter(Analysis.workspace_id == workspace_id).all()
 
     # 2️ Borrar los cohorts
     for analysis in analyses:
-        analysis_service.delete_with_history_and_cohorts(db=db, analysis_id=analysis.id, user_id=current_user.id)
-        
+        analysis_service.delete_with_history_and_cohorts(
+            db=db, analysis_id=analysis.id, user_id=current_user.id
+        )
+
     deleted_workspace = workspace_service.remove(db=db, id=workspace_id)
     if not deleted_workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Workspace with ID {workspace_id} not found"
+            detail=f"Workspace with ID {workspace_id} not found",
         )
     return deleted_workspace
 
@@ -182,12 +202,15 @@ def update_data_access(
     db: Session = Depends(get_db),
     workspace_id: int,
     data_access: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Updates the data access status of a workspace.
     """
     workspace = workspace_service.update_data_access(
-        db=db, workspace_id=workspace_id, data_access=data_access, user_id=current_user.id
+        db=db,
+        workspace_id=workspace_id,
+        data_access=data_access,
+        user_id=current_user.id,
     )
     return workspace

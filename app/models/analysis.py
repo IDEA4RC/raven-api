@@ -20,6 +20,7 @@ class Analysis(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
     expiring_date = Column(DateTime(timezone=True))
+    session_id_vantage =  Column(Integer)
     
     # Relationships
     user = relationship("User")
