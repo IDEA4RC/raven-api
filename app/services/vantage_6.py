@@ -9,7 +9,6 @@ import requests
 import time
 import logging
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 
 from app.models.workspace import Workspace
