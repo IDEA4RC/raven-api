@@ -5,6 +5,7 @@ Service for handling cohort operations in the application.
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from app.models.metadata_search import MetadataSearch
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -32,17 +33,19 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         try:
 
             # Check if the workspace exists
-            workspace = (
-                db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
-            )
-            if not workspace:
-                raise ValueError(f"Workspace {obj_in.workspace_id} not found")
 
             analysis = (
                 db.query(Analysis).filter(Analysis.id == obj_in.analysis_id).first()
             )
+
             if not analysis:
                 raise ValueError(f"analysis {obj_in.analysis_id} not found")
+
+            workspace_id = analysis.workspace_id
+
+            workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if not workspace:
+                raise ValueError(f"Workspace {workspace_id} not found")
 
             # Create the cohort
             obj_in_data = obj_in.model_dump()
@@ -51,6 +54,7 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
             if not obj_in_data.get("update_date"):
                 obj_in_data["update_date"] = datetime.now(timezone.utc)
             obj_in_data["user_id"] = user_id
+            obj_in_data["workspace_id"] = workspace_id
             db_obj = Cohort(**obj_in_data)
             db.add(db_obj)
             db.commit()
@@ -226,26 +230,65 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         """
         try:
 
-            # Check if the workspace exists
-            workspace = (
-                db.query(Workspace).filter(Workspace.id == obj_in.workspace_id).first()
-            )
-            if not workspace:
-                raise ValueError(f"Workspace {obj_in.workspace_id} not found")
-
             analysis = (
                 db.query(Analysis).filter(Analysis.id == obj_in.analysis_id).first()
             )
             if not analysis:
                 raise ValueError(f"analysis {obj_in.analysis_id} not found")
 
+            workspace_id = analysis.workspace_id
+
+            workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if not workspace:
+                raise ValueError(f"Workspace {workspace_id} not found")
             # Create the cohort
+
+            metadata = (
+                db.query(MetadataSearch)
+                .filter(MetadataSearch.workspace_id == workspace.id)
+                .first()
+            )
+            if not metadata:
+                raise ValueError(f"Metadata for workspace {workspace.id} not found")
+
+            features = metadata.type_cancer
+            if features == "H&N":
+                features = "head_neck"
+            if not analysis.session_id_vantage:
+                raise ValueError(
+                    f"Analysis {analysis.id} does not have a Vantage6 session ID"
+                )
+
+            logger.info(
+                "[V6] Creating cohort in Vantage6 session_id=%s",
+                analysis.session_id_vantage,
+            )
+
+            dataframe_id = vantage6_service.create_new_cohort(
+                access_token=access_token,
+                session_id=analysis.session_id_vantage,
+                features=features,
+            )
+
+            if not dataframe_id:
+                raise RuntimeError("Failed to create cohort in Vantage6")
+
+            logger.info("[V6] dataframe_id received: %s", dataframe_id)
+
             obj_in_data = obj_in.model_dump()
-            if not obj_in_data.get("creation_date"):
-                obj_in_data["creation_date"] = datetime.now(timezone.utc)
-            if not obj_in_data.get("update_date"):
-                obj_in_data["update_date"] = datetime.now(timezone.utc)
-            obj_in_data["user_id"] = user_id
+
+            now = datetime.now(timezone.utc)
+            create_date = obj_in_data.get("creation_date", now)
+
+            obj_in_data.update(
+                {
+                    "creation_date": create_date,
+                    "update_date": now,
+                    "user_id": user_id,
+                    "workspace_id": workspace.id,
+                    "dataframe_vantage_id": dataframe_id,
+                }
+            )
             db_obj = Cohort(**obj_in_data)
             db.add(db_obj)
             db.commit()
@@ -264,20 +307,7 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
             db.commit()
             db.refresh(db_obj)
 
-            dataframe_id = vantage6_service.create_new_cohort(
-                access_token=access_token,
-                session_id=analysis.session_id_vantage,
-                features="sarcoma",
-            )
-            logger.info("[V6] create_new_cohort dataframe_id=%s", dataframe_id)
-
-            updated_cohort = CohortUpdate(
-                dataframe_vantage_id=dataframe_id,
-                last_modification_date=datetime.now(timezone.utc),
-            )
-            updated_cohort_done = self.update(db, db_obj=db_obj, obj_in=updated_cohort)
-
-            return updated_cohort_done
+            return db_obj
         except Exception as e:
             db.rollback()
             raise

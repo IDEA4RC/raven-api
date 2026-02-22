@@ -46,7 +46,7 @@ def create_workspace(
     response_model=schemas.Workspace,
     status_code=status.HTTP_201_CREATED,
 )
-def create_workspace(
+def create_workspace_v2(
     *,
     db: Session = Depends(get_db),
     workspace_in: WorkspaceCreateV2,
@@ -55,7 +55,6 @@ def create_workspace(
     """
     Creates a new workspace.
     """
-
     user = current_user.user
     access_token = current_user.access_token
     workspace = workspace_orchestrator_service.create_workspace_full(

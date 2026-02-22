@@ -38,7 +38,7 @@ from app.schemas.workspace import (
 
 from app.models.analysis import Analysis
 
-from app.utils.constants import API_BASE, COLLABORATION_ID
+from app.utils.constants import API_BASE, COLLABORATION_ID, ORGANIZATION_IDS
 
 # TODO: Remove when multi-node support is fully enabled in Vantage6
 USE_STATIC_ORGANIZATIONS = False
@@ -81,6 +81,72 @@ class Vantage6Service(
         self.timeout = timeout
 
     def register_workspace(
+        self,
+        *,
+        workspace_name: str,
+        access_token: str,
+    ) -> str:
+        """
+        Registra un workspace en Vantage6 y devuelve el v6_study_id.
+        No requiere un objeto Workspace de la DB.
+        """
+        org_ids = self._get_org_ids(
+            access_token=access_token, collaboration_id=COLLABORATION_ID
+        )
+
+        if not org_ids:
+            raise RuntimeError("No organizations found for this collaboration")
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        v6_name = self.generate_unique_workspace_name(workspace_name)
+
+        payload = {
+            "collaboration_id": COLLABORATION_ID,
+            "organization_ids": org_ids,
+            "name": v6_name,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        logger.debug("[V6] Payload to Vantage6: %s", json.dumps(payload, indent=2))
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/study", json=payload, headers=headers
+                )
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.debug("[V6] Response from Vantage6: %s", json.dumps(data, indent=2))
+
+            v6_study_id = (
+                str(data.get("id"))
+                if isinstance(data, dict) and "id" in data
+                else str(data)
+            )
+
+            logger.debug("[V6] Response from Vantage6 v6_study_id: %s", v6_study_id)
+            return str(data.get("id"))  # v6_study_id
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"Vantage6 creation failed ({exc.response.status_code}): {exc.response.text}"
+            )
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"Cannot reach Vantage6: {str(exc)}")
+
+    def generate_unique_workspace_name(self, base_name: str) -> str:
+        # YYYYMMDD_HHMMSS por ejemplo
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{base_name}_{timestamp}"
+
+    def register_workspace2(
         self,
         db: Session,
         *,
@@ -218,8 +284,20 @@ class Vantage6Service(
 
                 response.raise_for_status()
                 payload = response.json()
+                organizations = {
+                    org["id"]: org["name"] for org in payload.get("data", [])
+                }
 
-                return {org["id"]: org["name"] for org in payload.get("data", [])}
+                # Temporary filter: only allow specific organizations (UPM and INT)
+
+                organizations = {
+                    org_id: name
+                    for org_id, name in organizations.items()
+                    if org_id in ORGANIZATION_IDS
+                }
+
+                logger.info(f"Organizations after filtering: {organizations}")
+                return organizations
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] Organization lookup failed (%s): %s",

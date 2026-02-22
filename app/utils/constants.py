@@ -48,4 +48,6 @@ TOKEN_V6 = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJncG4zend5TUJzeE42
 
 API_BASE = "https://vantage6-core.orchestrator.idea.lst.tfo.upm.es/server"
 
-COLLABORATION_ID = 2
+COLLABORATION_ID = 3
+
+ORGANIZATION_IDS = {1, 4}
