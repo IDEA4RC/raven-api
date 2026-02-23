@@ -47,7 +47,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
 
         # Actualizar el workspace
         workspace.data_access = db_obj.status
-        workspace.last_modification_date = datetime.now(timezone.utc)
+        workspace.update_date = datetime.now(timezone.utc)
         db.add(workspace)
 
         # Crear historial
@@ -127,7 +127,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         if workspace:
             workspace.data_access = status
             workspace.status = workspaceStatus
-            workspace.last_modification_date = datetime.now(timezone.utc)
+            workspace.update_date = datetime.now(timezone.utc)
             db.add(workspace)
 
         workspace_history = WorkspaceHistory(
@@ -155,6 +155,9 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
         """
         Update a permit and log the change in workspace history
         """
+        logger.info(
+            f"[PERMIT] Updating permit with id {permit_id} using data: {obj_in}"
+        )
         # Get the permit
         permit = self.get(db, permit_id)
         if not permit:
@@ -205,17 +208,20 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             changes.append(f"COEs granted")
 
         # Update the workspace if status changed
-        if obj_in.status is not None and updated_permit.status != old_status:
-            workspace = (
-                db.query(Workspace)
-                .filter(Workspace.id == updated_permit.workspace_id)
-                .first()
-            )
-            if workspace:
-                workspace.data_access = updated_permit.status
-                workspace.last_modification_date = datetime.now(timezone.utc)
-                db.add(workspace)
 
+        workspace = (
+            db.query(Workspace)
+            .filter(Workspace.id == updated_permit.workspace_id)
+            .first()
+        )
+        if workspace:
+            workspaceStatus = workspace.status
+        else:
+            workspaceStatus = ""
+
+        logger.info(
+            f"[PERMIT] Permit update - changes: {changes}, workspace before update: {workspace}"
+        )
         # Create workspace history if there were changes
         if changes:
             # Determine action based on changes
@@ -231,6 +237,7 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
                 elif updated_permit.status == PermitStatus.GRANTED:
                     action = "Data access application approved"
                     description = "The data permit application has been approved"
+                    workspaceStatus = "Data Analysis"
                 elif updated_permit.status == PermitStatus.REJECTED:
                     action = "Data access application rejected"
                     description = "The data permit application has been rejected"
@@ -260,8 +267,27 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             )
             db.add(workspace_history)
 
+            logger.info(f"[PERMIT] Permit update history: {action} - {description}")
+            logger.info(
+                f"[PERMIT] obj_in.status: {obj_in.status}, old_status: {old_status}, updated_permit.status: {updated_permit.status}"
+            )
+
+            if obj_in.status is not None and updated_permit.status != old_status:
+                logger.info("[PERMIT] IF condition for status change is True")
+
+                if workspace:
+                    workspace.data_access = updated_permit.status
+                    workspace.status = workspaceStatus
+                    workspace.update_date = datetime.now(timezone.utc)
+
+                    logger.info(
+                        f"[PERMIT] Workspace updated due to permit status change {updated_permit.status}"
+                    )
+                    db.add(workspace)
+
         db.commit()
         db.refresh(updated_permit)
+
         return updated_permit
 
     def delete_with_history(
