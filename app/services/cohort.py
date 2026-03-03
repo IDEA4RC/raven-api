@@ -15,7 +15,7 @@ from app.models.analysis import Analysis
 from app.models.workspace_history import WorkspaceHistory
 from app.schemas.cohort import CohortCreate, CohortUpdate, CohortStatusUpdate
 from app.services.base import BaseService
-from app.utils.constants import CohortStatus
+from app.utils.constants import CohortStatus, typeOfDiseases
 from app.services.vantage_6 import vantage6_service
 import logging
 
@@ -253,7 +253,7 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
 
             features = metadata.type_cancer
             if features == "H&N":
-                features = "head_neck"
+                features = typeOfDiseases.HAndN.value
             if not analysis.session_id_vantage:
                 raise ValueError(
                     f"Analysis {analysis.id} does not have a Vantage6 session ID"

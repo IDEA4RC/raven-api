@@ -50,3 +50,10 @@ API_BASE = "https://vantage6-core.orchestrator.idea.lst.tfo.upm.es/server"
 COLLABORATION_ID = 3
 
 ORGANIZATION_IDS = {1, 4}
+
+
+class typeOfDiseases(Enum):
+    """Tipos de enfermedades"""
+
+    SARCOMA = "sarc"
+    HAndN = "head_and_neck"

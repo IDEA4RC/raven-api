@@ -72,7 +72,7 @@ def create_data_preparation_summary(
     response_model=schemas.V6RunResult,
     status_code=status.HTTP_200_OK,
 )
-def create_data_preparation_summary(
+def get_status_task(
     *,
     db: Session = Depends(get_db),
     task_id: int,
@@ -101,7 +101,7 @@ def create_data_preparation_summary(
 
 
 @router.get("/result_task/{task_id}", status_code=status.HTTP_200_OK)
-def create_data_preparation_summary(
+def get_result_task(
     *,
     task_id: int,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
@@ -119,6 +119,62 @@ def create_data_preparation_summary(
 
         if not status_task:
             raise HTTPException(status_code=404, detail="No status for the task id")
+
+        return status_task
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/get_subtasks/{task_id}", status_code=status.HTTP_200_OK)
+def get_subtasks(
+    *,
+    task_id: int,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Check the status of the API.
+    Returns a JSON response indicating the service is working correctly.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        status_task = service.get_subtasks(access_token=TOKEN_V6, task_id=task_id)
+
+        if not status_task:
+            raise HTTPException(status_code=404, detail="No subtasks for the task id")
+
+        return status_task
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/get_subtask_results/{task_id}", status_code=status.HTTP_200_OK)
+def get_subtask_results(
+    *,
+    task_id: int,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Check the status of the API.
+    Returns a JSON response indicating the service is working correctly.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        status_task = service.get_subtask_results(
+            access_token=TOKEN_V6, subtask_id=task_id
+        )
+
+        if not status_task:
+            raise HTTPException(
+                status_code=404, detail="No subtask result for the task id"
+            )
 
         return status_task
 

@@ -3,6 +3,7 @@ Vantage6 integration service
 Handles study registration and related orchestration
 """
 
+from asyncio import tasks
 import base64
 import json
 import requests
@@ -641,9 +642,7 @@ class Vantage6Service(
                 "arguments": base64.b64encode(
                     json.dumps(
                         {
-                            "columns": VARIABLES,
-                            "numeric_columns": NUMERIC_VARIABLES,
-                            "organizations_to_include": org_ids,  # all participants
+                            "organizations_to_include": org_ids,
                         }
                     ).encode("UTF-8")
                 ).decode("UTF-8"),
@@ -809,6 +808,140 @@ class Vantage6Service(
                 task_id,
             )
             raise exc
+
+    def get_subtasks(self, *, access_token: str, task_id: int) -> int:
+        """
+        Obtiene el ID de la subtask con method='summary_per_data_station'
+        para una task padre en Vantage6.
+        """
+
+        logger.info("[V6] get_subtasks START for parent_task_id=%s", task_id)
+
+        if not self.base_url:
+            logger.warning("External data_preparation  URL not configured")
+            return
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}/task?parent_id={task_id}",
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] GET to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+            response_json = response.json()
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_json, indent=2)
+            )
+
+            tasks = response_json.get("data", [])
+            if not isinstance(tasks, list):
+                raise RuntimeError("Unexpected response format from Vantage6")
+
+            for task in tasks:
+                if task.get("method") == "summary_per_data_station":
+                    subtask_id = task.get("id")
+                    logger.info(
+                        "[V6] Found subtask with method='summary_per_data_station', id=%s",
+                        subtask_id,
+                    )
+                    return subtask_id
+
+            raise RuntimeError(
+                f"No subtask with method='summary_per_data_station' found for parent task {task_id}"
+            )
+
+        except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
+            logger.exception(
+                "[V6] Error getting subtask for task_id=%s",
+                task_id,
+            )
+            raise RuntimeError(f"Failed to retrieve subtask: {str(exc)}")
+
+    def get_subtask_results(self, *, access_token: str, subtask_id: int) -> list[dict]:
+        """
+        Obtiene y decodifica los resultados de una subtask en Vantage6.
+        Devuelve una lista de resultados ya decodificados (dict).
+        """
+
+        logger.info("[V6] get_task_results START for subtask_id=%s", subtask_id)
+
+        if not self.base_url:
+            raise RuntimeError("Vantage6 base_url not configured")
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}/result?task_id={subtask_id}",
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] GET to %s returned status %s",
+                response.url,
+                response.status_code,
+            )
+
+            response.raise_for_status()
+
+            response_json = response.json()
+
+            logger.debug(
+                "[V6] Full result response: %s",
+                json.dumps(response_json, indent=2),
+            )
+
+            results = response_json.get("data", [])
+
+            if not isinstance(results, list):
+                raise RuntimeError("Unexpected result format from Vantage6")
+
+            structured_results: dict[str, list] = {}
+
+            for item in results:
+                encoded_payload = item.get("result")
+                if not encoded_payload:
+                    continue
+
+                decoded_json = json.loads(
+                    base64.b64decode(encoded_payload).decode("UTF-8")
+                )
+
+                # decoded_json = { "mystifying_grothendieck": { ... } }
+
+                for node_name, node_data in decoded_json.items():
+
+                    if node_name not in structured_results:
+                        structured_results[node_name] = []
+
+                    structured_results[node_name].append(node_data)
+
+            logger.info(
+                "[V6] Successfully structured %s node(s)",
+                len(structured_results),
+            )
+
+            return structured_results
+
+        except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
+            logger.exception(
+                "[V6] Error retrieving results for subtask_id=%s",
+                subtask_id,
+            )
+            raise RuntimeError(f"Failed to retrieve task results: {str(exc)}")
 
 
 vantage6_service = Vantage6Service()

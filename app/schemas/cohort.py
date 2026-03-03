@@ -18,6 +18,7 @@ class CohortCreate(CohortBase):
     """Schema for creating a cohort."""
 
     cohort_query: Optional[str] = None
+    query_execution_id: Optional[int] = None
 
 
 class CohortStatusUpdate(BaseModel):
