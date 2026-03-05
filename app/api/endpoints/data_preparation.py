@@ -105,7 +105,7 @@ def create_data_preparation_summary(
 def create_data_preparation_crosstab(
     *,
     db: Session = Depends(get_db),
-    data_preparation: schemas.CrosstabPreparationRequest,
+    crosstab_preparation_data: schemas.CrosstabPreparationRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
     """
@@ -118,7 +118,9 @@ def create_data_preparation_crosstab(
         access_token = current_user.access_token
 
         summary_task = service.create_crosstab(
-            db=db, access_token=TOKEN_V6, data_preparation_in=data_preparation
+            db=db,
+            access_token=TOKEN_V6,
+            crosstab_preparation_in=crosstab_preparation_data,
         )
 
         if not summary_task:
