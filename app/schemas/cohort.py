@@ -12,6 +12,9 @@ class CohortBase(BaseModel):
     creation_date: Optional[datetime] = None
     update_date: Optional[datetime] = None
     analysis_id: int
+    workspace_id: int
+    query_execution_id: Optional[int] = None
+    dataframe_vantage_id: Optional[int] = None
 
 
 class CohortCreate(CohortBase):

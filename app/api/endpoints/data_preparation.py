@@ -32,6 +32,36 @@ async def data_preparation_check():
     }
 
 
+@router.get("/get_variables_dataframe/{dataframe_id}", status_code=status.HTTP_200_OK)
+def get_variables_dataframe(
+    *,
+    dataframe_id: int,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Check the status of the API.
+    Returns a JSON response indicating the service is working correctly.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        status_task = service.get_variables_dataframe(
+            access_token=TOKEN_V6, dataframe_id=dataframe_id
+        )
+
+        if not status_task:
+            raise HTTPException(
+                status_code=404, detail="No variables found for the dataframe id"
+            )
+
+        return status_task
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
 @router.post(
     "/create_summary",
     response_model=schemas.V6TaskResult,

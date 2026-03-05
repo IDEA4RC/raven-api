@@ -84,6 +84,7 @@ def get_cohorts(
             "user_id",
             "analysis_id",
             "workspace_id",
+            "query_execution_id",
         ]
         return {
             k: getattr(c, k)

@@ -28,6 +28,7 @@ from app.schemas.data_preparation import (
     V6TaskResult,
     V6RunResult,
     V6DecodedResult,
+    V6Variables,
 )
 from app.schemas.workspace import (
     Workspace as WorkspaceSchema,
@@ -712,6 +713,63 @@ class Vantage6Service(
             task_id=-1,
             job_id=-1,
         )
+
+    def get_variables_dataframe(
+        self, *, access_token: str, dataframe_id: int
+    ) -> V6Variables:
+        """
+        Crea un nuevo data data_preparation en Vantage 6
+        """
+
+        logger.info(
+            "[V6] get_variables_dataframe START for dataframe_id=%s", dataframe_id
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation  URL not configured")
+            return
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}/session/dataframe/{dataframe_id}",
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] GET to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            status_task = response_data["columns"]
+
+            logger.debug("[V6]status_task: %s", json.dumps(status_task, indent=2))
+
+            return V6Variables(
+                variablesList=status_task,
+            )
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 organization lookup failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6Variables(variablesList=[])
 
     def get_status_by_task_id(self, *, access_token: str, task_id: int) -> V6RunResult:
         """

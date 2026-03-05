@@ -24,3 +24,13 @@ class V6RunResult(BaseModel):
 class V6DecodedResult(BaseModel):
     task_id: int
     result: Dict[str, Any]
+
+
+class V6Variable(BaseModel):
+    node_id: int
+    name: str
+    dtype: str
+
+
+class V6Variables(BaseModel):
+    variablesList: List[V6Variable]
