@@ -97,6 +97,41 @@ def create_data_preparation_summary(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+@router.post(
+    "/create_crosstab",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_data_preparation_crosstab(
+    *,
+    db: Session = Depends(get_db),
+    data_preparation: schemas.CrosstabPreparationRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Check the status of the API.
+    Returns a JSON response indicating the service is working correctly.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        summary_task = service.create_crosstab(
+            db=db, access_token=TOKEN_V6, data_preparation_in=data_preparation
+        )
+
+        if not summary_task:
+            raise HTTPException(
+                status_code=404, detail="No cohorts found for the provided IDs"
+            )
+
+        return summary_task
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
 @router.get(
     "/status_task/{task_id}",
     response_model=schemas.V6RunResult,

@@ -34,3 +34,10 @@ class V6Variable(BaseModel):
 
 class V6Variables(BaseModel):
     variablesList: List[V6Variable]
+
+
+class CrosstabPreparationRequest(BaseModel):
+    workspace_id: int
+    analysis_id: int
+    cohorts_ids: List[int]
+    variablesList: List[str]
