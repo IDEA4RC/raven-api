@@ -790,16 +790,14 @@ class Vantage6Service(
             "Content-Type": "application/json",
         }
 
-        RESULTS_COL = "sex"
-        GROUP_COLS = ["clinical_stage", "pathological_stage"]
         org_input = [
             {
                 "id": org_ids[0],  # Central task
                 "arguments": base64.b64encode(
                     json.dumps(
                         {
-                            "results_col": RESULTS_COL,
-                            "group_cols": GROUP_COLS,
+                            "results_col": crosstab_preparation_in.results_col,
+                            "group_cols": crosstab_preparation_in.group_cols,
                             "organizations_to_include": org_ids,
                         }
                     ).encode("UTF-8")

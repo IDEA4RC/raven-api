@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, List, Dict
 
 
@@ -41,3 +41,5 @@ class CrosstabPreparationRequest(BaseModel):
     analysis_id: int
     cohorts_ids: List[int]
     variablesList: List[str]
+    results_col: str
+    group_cols: List[str] = Field(min_length=1)
