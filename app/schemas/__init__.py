@@ -32,6 +32,7 @@ from app.schemas.data_preparation import (
     V6RunResult,
     V6GetStatus,
     CrosstabPreparationRequest,
+    TTestRequest,
 )
 from app.schemas.metadata_search import MetadataSearch
 
@@ -74,4 +75,5 @@ __all__ = [
     "MetadataSearch",
     "V6GetStatus",
     "CrosstabPreparationRequest",
+    "TTestRequest",
 ]

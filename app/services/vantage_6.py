@@ -26,6 +26,7 @@ from app.services.base import BaseService
 from app.schemas.data_preparation import (
     CrosstabPreparationRequest,
     DataPreparationRequest,
+    TTestRequest,
     V6TaskResult,
     V6RunResult,
     V6DecodedResult,
@@ -824,6 +825,158 @@ class Vantage6Service(
 
         logger.info(
             "[V6] Payload to send to Vantage6 to create Crosstab:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/task",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["id"]
+            job_id = response_data["job_id"]
+
+            logger.info("[V6] Extracted job_id IDs: %s", job_id)
+
+            return V6TaskResult(
+                task_id=task_id,
+                job_id=job_id,
+            )
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 organization lookup failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(
+            task_id=-1,
+            job_id=-1,
+        )
+
+    def create_t_test(
+        self,
+        db: Session,
+        *,
+        access_token: str,
+        t_test_in: TTestRequest,
+    ) -> V6TaskResult:
+        """
+        Crea un nuevo t-test en Vantage 6
+        """
+        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        METHOD = "t_test_central"
+
+        logger.info(
+            "[V6] create_t_test START for t_test_in=%s",
+            t_test_in,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation  URL not configured")
+            return
+
+        # Verificar que el workspace existe
+        workspace = (
+            db.query(Workspace)
+            .filter(Workspace.id == t_test_in.workspace_id)
+            .first()
+        )
+        if not workspace:
+            raise ValueError(
+                f"Workspace with id {t_test_in.workspace_id} not found"
+            )
+
+        # Verificar que el analysis existe
+        analysis = (
+            db.query(Analysis)
+            .filter(Analysis.id == t_test_in.analysis_id)
+            .first()
+        )
+        if not analysis:
+            raise ValueError(
+                f"Analysis with id {t_test_in.analysis_id} not found"
+            )
+
+        cohorts = (
+            db.query(Cohort)
+            .filter(Cohort.id.in_(t_test_in.cohorts_ids))
+            .all()
+        )
+        if not cohorts:
+            raise ValueError("No cohorts found for the provided IDs")
+
+        # 4️⃣ Extraer dataframe_vantage_id
+        dataframe_ids = [
+            cohort.dataframe_vantage_id
+            for cohort in cohorts
+            if cohort.dataframe_vantage_id is not None
+        ]
+
+        logger.info("[V6] workspace from db =%s", workspace)
+        logger.info("[V6] analysis from db =%s", analysis)
+        logger.info("[V6] cohorts from db =%s", dataframe_ids)
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        org_input = [
+            {
+                "id": org_ids[0],  # Central task
+                "arguments": base64.b64encode(
+                    json.dumps(
+                        {
+                            "organizations_to_include": org_ids,
+                        }
+                    ).encode("UTF-8")
+                ).decode("UTF-8"),
+            }
+        ]
+
+        payload = {
+            "name": "Human-readable name of the task",
+            "image": IMAGE,
+            "description": "Description of the task",
+            "action": "central_compute",
+            "method": METHOD,
+            "organizations": org_input,
+            "databases": [
+                [
+                    {"type": "dataframe", "dataframe_id": df_id}
+                    for df_id in dataframe_ids
+                ]
+            ],
+            "session_id": analysis.session_id_vantage,
+            "study_id": workspace.v6_study_id,
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 to create T-test:\n%s",
             json.dumps(payload, indent=2),
         )
 

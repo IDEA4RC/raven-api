@@ -43,3 +43,9 @@ class CrosstabPreparationRequest(BaseModel):
     variablesList: List[str]
     results_col: str
     group_cols: List[str] = Field(min_length=1)
+
+
+class TTestRequest(BaseModel):
+    workspace_id: int
+    analysis_id: int
+    cohorts_ids: List[int]
