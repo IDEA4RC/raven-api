@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 
 from app.models.workspace import Workspace
+from app.models.algorithm import Algorithm
 from app.models.cohort import Cohort
 from datetime import datetime, timezone
 from typing import Any, Optional, List
@@ -42,7 +43,7 @@ from app.schemas.workspace import (
 
 from app.models.analysis import Analysis
 
-from app.utils.constants import API_BASE, COLLABORATION_ID, ORGANIZATION_IDS
+from app.utils.constants import API_BASE, COLLABORATION_ID, ORGANIZATION_IDS, ALGORITHMS
 
 # TODO: Remove when multi-node support is fully enabled in Vantage6
 USE_STATIC_ORGANIZATIONS = False
@@ -850,6 +851,20 @@ class Vantage6Service(
             task_id = response_data["id"]
             job_id = response_data["job_id"]
 
+            # Create algorithm
+            algorithm = Algorithm(
+                method_name=ALGORITHMS.CROSSTABULATION,
+                description="Crosstab analysis",
+                input=json.dumps(crosstab_preparation_in.variablesList),
+                task_id=task_id,
+            )
+
+            algorithm.cohorts = cohorts
+
+            db.add(algorithm)
+            db.commit()
+            db.refresh(algorithm)
+
             logger.info("[V6] Extracted job_id IDs: %s", job_id)
 
             return V6TaskResult(
@@ -895,31 +910,19 @@ class Vantage6Service(
 
         # Verificar que el workspace existe
         workspace = (
-            db.query(Workspace)
-            .filter(Workspace.id == t_test_in.workspace_id)
-            .first()
+            db.query(Workspace).filter(Workspace.id == t_test_in.workspace_id).first()
         )
         if not workspace:
-            raise ValueError(
-                f"Workspace with id {t_test_in.workspace_id} not found"
-            )
+            raise ValueError(f"Workspace with id {t_test_in.workspace_id} not found")
 
         # Verificar que el analysis existe
         analysis = (
-            db.query(Analysis)
-            .filter(Analysis.id == t_test_in.analysis_id)
-            .first()
+            db.query(Analysis).filter(Analysis.id == t_test_in.analysis_id).first()
         )
         if not analysis:
-            raise ValueError(
-                f"Analysis with id {t_test_in.analysis_id} not found"
-            )
+            raise ValueError(f"Analysis with id {t_test_in.analysis_id} not found")
 
-        cohorts = (
-            db.query(Cohort)
-            .filter(Cohort.id.in_(t_test_in.cohorts_ids))
-            .all()
-        )
+        cohorts = db.query(Cohort).filter(Cohort.id.in_(t_test_in.cohorts_ids)).all()
         if not cohorts:
             raise ValueError("No cohorts found for the provided IDs")
 
@@ -1001,6 +1004,18 @@ class Vantage6Service(
 
             task_id = response_data["id"]
             job_id = response_data["job_id"]
+
+            algorithm = Algorithm(
+                method_name=ALGORITHMS.TTEST,
+                description="T-test analysis",
+                task_id=task_id,
+            )
+
+            algorithm.cohorts = cohorts
+
+            db.add(algorithm)
+            db.commit()
+            db.refresh(algorithm)
 
             logger.info("[V6] Extracted job_id IDs: %s", job_id)
 

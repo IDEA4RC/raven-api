@@ -17,11 +17,18 @@ class Algorithm(Base):
     description = Column(Text)
     creation_date = Column(DateTime(timezone=True), server_default=func.now())
     version_date = Column(DateTime(timezone=True))
-    input = Column(String)
+    input = Column(String)  # variables
     output = Column(String)
-    analysis_id = Column(Integer, ForeignKey("analyses.id"))
-    
+    # ID del dataframe generado por Vantage6
+    new_dataframe_vantage_id = Column(Integer, nullable=True)
+
+    # ID de la task de Vantage6
+    task_id = Column(Integer, index=True)
+
     # Relationships
-    analysis = relationship("Analysis", back_populates="algorithms")
-    cohorts = relationship("Cohort", secondary="cohort_algorithms", back_populates="algorithms")
-    cohort_algorithms = relationship("CohortAlgorithm", back_populates="algorithm")
+    # relationships
+    cohorts = relationship(
+        "Cohort",
+        secondary="cohort_algorithms",
+        back_populates="algorithms",
+    )

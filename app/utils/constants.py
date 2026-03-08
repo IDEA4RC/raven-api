@@ -57,3 +57,14 @@ class typeOfDiseases(Enum):
 
     SARCOMA = "sarc"
     HAndN = "head_and_neck"
+
+
+class ALGORITHMS(str, Enum):
+
+    CROSSTABULATION = "crosstabulation"
+    TTEST = "t-test"
+    CHI_SQUARED = "chi-squared"
+    KAPLAN_MEIER = "kaplan-meier"
+    LOG_RANK_TEST = "log-rank-test"
+    GLM = "glm"
+    TIME_DELTA = "time-delta"

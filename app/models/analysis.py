@@ -16,14 +16,15 @@ class Analysis(Base):
     analysis_name = Column(String, index=True)
     analysis_description = Column(Text)
     creation_date = Column(DateTime(timezone=True), server_default=func.now())
-    update_date = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    update_date = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     user_id = Column(Integer, ForeignKey("users.id"))
     workspace_id = Column(Integer, ForeignKey("workspaces.id"))
     expiring_date = Column(DateTime(timezone=True))
-    session_id_vantage =  Column(Integer)
-    
+    session_id_vantage = Column(Integer)
+
     # Relationships
     user = relationship("User")
     workspace = relationship("Workspace", back_populates="analyses")
-    algorithms = relationship("Algorithm", back_populates="analysis")
     cohorts = relationship("Cohort", back_populates="analysis")

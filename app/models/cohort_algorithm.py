@@ -13,6 +13,3 @@ class CohortAlgorithm(Base):
 
     cohort_id = Column(Integer, ForeignKey("cohorts.id"), primary_key=True)
     algorithm_id = Column(Integer, ForeignKey("algorithms.id"), primary_key=True)
-    
-    # Relationships
-    algorithm = relationship("Algorithm", back_populates="cohort_algorithms")
