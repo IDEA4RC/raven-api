@@ -22,6 +22,11 @@ class AlgorithmUpdate(BaseModel):
     description: Optional[str] = None
     input: Optional[str] = None
     output: Optional[str] = None
+    task_id: int
+    subtask_id: Optional[int] = None
+    status_task: Optional[str] = None
+    status_subtask: Optional[str] = None
+    version_date: Optional[datetime] = None
 
 
 class Algorithm(AlgorithmBase):

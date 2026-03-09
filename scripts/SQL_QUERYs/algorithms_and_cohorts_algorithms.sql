@@ -17,4 +17,13 @@ CREATE TABLE cohort_algorithms (
     cohort_id INTEGER REFERENCES cohorts(id) ON DELETE CASCADE,
     algorithm_id INTEGER REFERENCES algorithms(id) ON DELETE CASCADE,
     PRIMARY KEY (cohort_id, algorithm_id)
+    
 );
+
+ALTER TABLE algorithms
+ADD COLUMN status_task TEXT;
+ALTER TABLE algorithms
+ADD COLUMN subtask_id INTEGER;
+
+ ALTER TABLE algorithms
+ADD COLUMN status_subtask TEXT;

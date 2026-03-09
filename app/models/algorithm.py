@@ -24,6 +24,9 @@ class Algorithm(Base):
 
     # ID de la task de Vantage6
     task_id = Column(Integer, index=True)
+    status_task = Column(Text, nullable=True)
+    subtask_id = Column(Integer, nullable=True)
+    status_subtask = Column(Text, nullable=True)
 
     # Relationships
     # relationships

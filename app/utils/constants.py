@@ -68,3 +68,4 @@ class ALGORITHMS(str, Enum):
     LOG_RANK_TEST = "log-rank-test"
     GLM = "glm"
     TIME_DELTA = "time-delta"
+    TABLE1 = "table1"

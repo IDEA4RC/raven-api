@@ -6,14 +6,17 @@ from typing import List, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import logging
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.services.algorithms import algorithm_service
 from app.schemas.algorithms import Algorithm as AlgorithmSchema
+from app.schemas.algorithms import AlgorithmUpdate
 from app.schemas.CohortListRequest import CohortListRequest
 from app import schemas
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -76,4 +79,17 @@ def get_algorithms_by_cohorts(
         return algorithms
     except Exception as e:
 
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch("/update_algorithm", response_model=schemas.algorithms.Algorithm)
+def update_algorithm(
+    request: AlgorithmUpdate,
+    db: Session = Depends(get_db),
+):
+    try:
+        algorithms = algorithm_service.update_algorithm(db, obj_in=request)
+        return algorithms
+    except Exception as e:
+        logger.exception("Error updating task status")
         raise HTTPException(status_code=500, detail="Internal server error")

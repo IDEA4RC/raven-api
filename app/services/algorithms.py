@@ -10,7 +10,10 @@ from urllib import response
 
 from app import db
 from app.models.algorithm import Algorithm
-from app.schemas.algorithms import AlgorithmCreate, AlgorithmUpdate
+from app.schemas.algorithms import (
+    AlgorithmCreate,
+    AlgorithmUpdate,
+)
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.models.cohort_algorithm import CohortAlgorithm
@@ -100,6 +103,31 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
         """Return algorithms linked to a cohort."""
         logger.info("[ALGORITHMS] GET to get_all_algorithm")
         return db.query(Algorithm).options(joinedload(Algorithm.cohorts)).all()
+
+    def update_algorithm(self, db: Session, *, obj_in: AlgorithmUpdate) -> Algorithm:
+        """Create algorithm and link cohorts."""
+
+        task_id = obj_in.task_id
+        logger.info(
+            "[ALGORITHMS] UPDATE task: task_id=%s",
+            task_id,
+        )
+
+        algorithm = db.query(Algorithm).filter(Algorithm.task_id == task_id).first()
+        if not algorithm:
+            raise ValueError(f"Algorithm with task_id {task_id} not found")
+
+        for field, value in obj_in.model_dump(exclude_unset=True).items():
+            setattr(algorithm, field, value)
+
+        if not obj_in.version_date:
+            algorithm.version_date = datetime.now(timezone.utc)
+
+        db.add(algorithm)
+        db.commit()
+        db.refresh(algorithm)
+
+        return algorithm
 
 
 algorithm_service = AlgorithmService(Algorithm)
