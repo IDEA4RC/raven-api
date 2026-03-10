@@ -69,3 +69,5 @@ class ALGORITHMS(str, Enum):
     GLM = "glm"
     TIME_DELTA = "time-delta"
     TABLE1 = "table1"
+    BASIC_ARITHMETIC = "basic_arithmetic"
+    SUMMARY = "summary"

@@ -256,6 +256,42 @@ def get_subtasks(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+@router.post(
+    "/create_basic_arithmetic",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_basic_arithmetic(
+    *,
+    basic_arithmetic_data: schemas.BasicArithmeticRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a basic arithmetic preprocessing task in Vantage6.
+    Modifies the specified dataframe by computing a new column from two operands.
+    Returns task_id and job_id for polling.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        result = service.create_basic_arithmetic(
+            access_token=TOKEN_V6,
+            basic_arithmetic_in=basic_arithmetic_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No result from Vantage6 preprocessing"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
 @router.get("/get_subtask_results/{task_id}", status_code=status.HTTP_200_OK)
 def get_subtask_results(
     *,

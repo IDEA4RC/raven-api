@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Union
 
 
 class DataPreparationRequest(BaseModel):
@@ -49,3 +49,11 @@ class TTestRequest(BaseModel):
     workspace_id: int
     analysis_id: int
     cohorts_ids: List[int]
+
+
+class BasicArithmeticRequest(BaseModel):
+    dataframe_id: int
+    column1: Union[str, int]
+    column2: Union[str, int]
+    operation: str
+    output_column: str

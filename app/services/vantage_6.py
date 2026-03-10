@@ -28,6 +28,7 @@ from app.schemas.data_preparation import (
     CrosstabPreparationRequest,
     DataPreparationRequest,
     TTestRequest,
+    BasicArithmeticRequest,
     V6TaskResult,
     V6RunResult,
     V6DecodedResult,
@@ -696,6 +697,17 @@ class Vantage6Service(
             task_id = response_data["id"]
             job_id = response_data["job_id"]
 
+            algorithm = Algorithm(
+                method_name=ALGORITHMS.SUMMARY,
+                description="Summary analysis",
+                task_id=task_id,
+            )
+ 
+            algorithm.cohorts = cohorts
+ 
+            db.add(algorithm)
+            db.commit()
+            db.refresh(algorithm)
             logger.info("[V6] Extracted job_id IDs: %s", job_id)
 
             return V6TaskResult(
@@ -1324,6 +1336,106 @@ class Vantage6Service(
                 subtask_id,
             )
             raise RuntimeError(f"Failed to retrieve task results: {str(exc)}")
+
+
+    def create_basic_arithmetic(
+        self,
+        *,
+        access_token: str,
+        basic_arithmetic_in: BasicArithmeticRequest,
+    ) -> V6TaskResult:
+        """
+        Executes a basic arithmetic preprocessing task in Vantage6.
+        Modifies the specified dataframe in place by computing a new column.
+        """
+        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        METHOD = "basic_arithmetic"
+
+        logger.info(
+            "[V6] create_basic_arithmetic START for dataframe_id=%s",
+            basic_arithmetic_in.dataframe_id,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation URL not configured")
+            return
+
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        arguments = {
+            "column1": basic_arithmetic_in.column1,
+            "column2": basic_arithmetic_in.column2,
+            "operation": basic_arithmetic_in.operation,
+            "output_column": basic_arithmetic_in.output_column,
+        }
+
+        payload = {
+            "dataframe_id": basic_arithmetic_in.dataframe_id,
+            "task": {
+                "image": IMAGE,
+                "method": METHOD,
+                "organizations": [
+                    {
+                        "id": org_id,
+                        "arguments": base64.b64encode(
+                            json.dumps(arguments).encode("UTF-8")
+                        ).decode("UTF-8"),
+                    }
+                    for org_id in org_ids
+                ],
+            },
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 for basic_arithmetic:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/session/dataframe/{basic_arithmetic_in.dataframe_id}/preprocess",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["last_session_task"]["id"]
+            job_id = response_data["last_session_task"]["job_id"]
+
+            return V6TaskResult(task_id=task_id, job_id=job_id)
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 preprocessing failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(task_id=-1, job_id=-1)
 
 
 vantage6_service = Vantage6Service()

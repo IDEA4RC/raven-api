@@ -33,6 +33,7 @@ from app.schemas.data_preparation import (
     V6GetStatus,
     CrosstabPreparationRequest,
     TTestRequest,
+    BasicArithmeticRequest,
 )
 from app.schemas.metadata_search import MetadataSearch
 from app.schemas.algorithms import (
@@ -82,6 +83,7 @@ __all__ = [
     "V6GetStatus",
     "CrosstabPreparationRequest",
     "TTestRequest",
+    "BasicArithmeticRequest",
     "Algorithm",
     "AlgorithmBase",
     "AlgorithmCreate",
