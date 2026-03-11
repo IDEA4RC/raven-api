@@ -82,6 +82,21 @@ def get_algorithms_by_cohorts(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.post("/is_summary", response_model=List[schemas.algorithms.Algorithm])
+def is_summary_by_cohorts(
+    request: CohortListRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+
+        algorithms = algorithm_service.is_summary_cohort_list(db, request.cohort_ids)
+
+        return algorithms
+    except Exception as e:
+
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.patch("/update_algorithm", response_model=schemas.algorithms.Algorithm)
 def update_algorithm(
     request: AlgorithmUpdate,

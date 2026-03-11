@@ -20,6 +20,7 @@ from app.models.cohort_algorithm import CohortAlgorithm
 from app.services.base import BaseService
 from app.models.cohort import Cohort
 from app.services.cohort import CohortService
+from app.utils.constants import ALGORITHMS
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,30 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             .join(match_count_subq, Algorithm.id == match_count_subq.c.algorithm_id)
             .filter(subq.c.total_cohorts == len(cohort_ids))
             .filter(match_count_subq.c.match_count == len(cohort_ids))
+        )
+        return query.all()
+
+    def is_summary_cohort_list(
+        self, db: Session, cohort_ids: list[int]
+    ) -> List[Algorithm]:
+
+        logger.info(
+            "[ALGORITHMS] GET to is_summary_cohort_list with cohort_ids: %s",
+            cohort_ids,
+        )
+        # Subquery: contar cohort_ids por algoritmo
+        query = (
+            db.query(Algorithm)
+            .join(CohortAlgorithm)
+            .filter(Algorithm.method_name == ALGORITHMS.SUMMARY)
+            .group_by(Algorithm.id)
+            .having(func.count(CohortAlgorithm.cohort_id) == len(cohort_ids))
+            .having(
+                func.count(
+                    func.nullif(CohortAlgorithm.cohort_id.in_(cohort_ids), False)
+                )
+                == len(cohort_ids)
+            )
         )
         return query.all()
 

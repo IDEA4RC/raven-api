@@ -34,7 +34,9 @@ class Algorithm(AlgorithmBase):
     creation_date: datetime
     version_date: Optional[datetime]
     cohort_ids: List[int] = []
-
+    status_task: Optional[str]
+    subtask_id: Optional[int]
+    status_subtask: Optional[str]
     model_config = ConfigDict(from_attributes=True)
 
     @classmethod
