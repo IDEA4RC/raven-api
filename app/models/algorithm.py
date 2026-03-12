@@ -2,7 +2,7 @@
 Algorithm model for the database
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -19,14 +19,16 @@ class Algorithm(Base):
     version_date = Column(DateTime(timezone=True))
     input = Column(String)  # variables
     output = Column(String)
-    # ID del dataframe generado por Vantage6
-    new_dataframe_vantage_id = Column(Integer, nullable=True)
 
     # ID de la task de Vantage6
     task_id = Column(Integer, index=True)
     status_task = Column(Text, nullable=True)
     subtask_id = Column(Integer, nullable=True)
     status_subtask = Column(Text, nullable=True)
+
+    # Crosstab fields
+    col_var = Column(Text, nullable=True)
+    row_var_list = Column(Text, nullable=True)
 
     # Relationships
     # relationships

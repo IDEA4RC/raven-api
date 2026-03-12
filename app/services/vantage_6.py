@@ -868,6 +868,8 @@ class Vantage6Service(
                 method_name=ALGORITHMS.CROSSTABULATION,
                 description="Crosstab analysis",
                 input=json.dumps(crosstab_preparation_in.variablesList),
+                col_var=crosstab_preparation_in.results_col,
+                row_var_list=",".join(crosstab_preparation_in.group_cols),
                 task_id=task_id,
             )
 

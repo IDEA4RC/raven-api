@@ -9,7 +9,8 @@ class AlgorithmBase(BaseModel):
     method_name: str
     description: Optional[str] = None
     input: Optional[str] = None
-    dataframe_vantage_id: Optional[int] = None
+    col_var: Optional[str] = None
+    row_var_list: Optional[str] = None
     task_id: int = None
 
 

@@ -9,7 +9,6 @@ CREATE TABLE algorithms (
     version_date TIMESTAMPTZ,
     input TEXT,
     output TEXT,
-    new_dataframe_vantage_id INTEGER,
     task_id INTEGER
 );
 
@@ -25,5 +24,13 @@ ADD COLUMN status_task TEXT;
 ALTER TABLE algorithms
 ADD COLUMN subtask_id INTEGER;
 
- ALTER TABLE algorithms
+ALTER TABLE algorithms
 ADD COLUMN status_subtask TEXT;
+
+Alter TABLE public.algorithms
+Drop COLUMN IF EXISTS new_dataframe_vantage_id;
+ALTER TABLE public.algorithms
+ADD COLUMN col_var TEXT;
+
+ALTER TABLE public.algorithms
+ADD COLUMN row_var_list TEXT;
