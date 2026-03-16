@@ -34,6 +34,10 @@ from app.schemas.data_preparation import (
     CrosstabPreparationRequest,
     TTestRequest,
     BasicArithmeticRequest,
+    MergeCategoriesRequest,
+    TimedeltaRequest,
+    KaplanMeierRequest,
+    OneHotEncodingRequest,
 )
 from app.schemas.metadata_search import MetadataSearch
 from app.schemas.algorithms import (
@@ -84,6 +88,10 @@ __all__ = [
     "CrosstabPreparationRequest",
     "TTestRequest",
     "BasicArithmeticRequest",
+    "MergeCategoriesRequest",
+    "TimedeltaRequest",
+    "KaplanMeierRequest",
+    "OneHotEncodingRequest",
     "Algorithm",
     "AlgorithmBase",
     "AlgorithmCreate",

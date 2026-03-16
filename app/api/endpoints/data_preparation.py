@@ -135,6 +135,44 @@ def create_data_preparation_crosstab(
 
 
 @router.post(
+    "/create_kaplan_meier",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_kaplan_meier(
+    *,
+    db: Session = Depends(get_db),
+    km_data: schemas.KaplanMeierRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a Kaplan-Meier survival analysis task in Vantage6.
+    Returns both the KM estimate and Log-Rank test results.
+    Returns task_id and job_id for polling.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        result = service.create_kaplan_meier(
+            db=db,
+            access_token=TOKEN_V6,
+            km_in=km_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No cohorts found for the provided IDs"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
     "/create_t_test",
     response_model=schemas.V6TaskResult,
     status_code=status.HTTP_201_CREATED,
@@ -279,6 +317,114 @@ def create_basic_arithmetic(
         result = service.create_basic_arithmetic(
             access_token=TOKEN_V6,
             basic_arithmetic_in=basic_arithmetic_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No result from Vantage6 preprocessing"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/create_merge_categories",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_merge_categories(
+    *,
+    merge_categories_data: schemas.MergeCategoriesRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a merge_categories preprocessing task in Vantage6.
+    Remaps categories of an existing column into a new output column.
+    Returns task_id and job_id for polling.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        result = service.create_merge_categories(
+            access_token=TOKEN_V6,
+            merge_categories_in=merge_categories_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No result from Vantage6 preprocessing"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/create_one_hot_encoding",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_one_hot_encoding(
+    *,
+    one_hot_encoding_data: schemas.OneHotEncodingRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a one_hot_encode preprocessing task in Vantage6.
+    Creates a binary column for each category in the specified column using the given prefix.
+    Returns task_id and job_id for polling.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        result = service.create_one_hot_encoding(
+            access_token=TOKEN_V6,
+            one_hot_encoding_in=one_hot_encoding_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No result from Vantage6 preprocessing"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/create_timedelta",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_timedelta(
+    *,
+    timedelta_data: schemas.TimedeltaRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a timedelta preprocessing task in Vantage6.
+    Computes the number of days from a date column to today and stores it in output_column.
+    Returns task_id and job_id for polling.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        result = service.create_timedelta(
+            access_token=TOKEN_V6,
+            timedelta_in=timedelta_data,
         )
 
         if not result:
