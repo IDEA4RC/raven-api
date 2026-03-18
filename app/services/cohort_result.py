@@ -5,16 +5,139 @@ Service for cohort result operations
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+import logging
+import json
 
 from app.models.cohort_result import CohortResult
 from app.models.cohort import Cohort
+from app.models.analysis import Analysis
+from app.models.metadata_search import MetadataSearch
 from app.schemas.cohort_result import CohortResultCreate, CohortResultUpdate
 from app.services.base import BaseService
+from app.services.vantage_6 import vantage6_service
+from app.utils.constants import CohortStatus, typeOfDiseases
 
 
-class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortResultUpdate]):
+logger = logging.getLogger(__name__)
+
+
+class CohortResultService(
+    BaseService[CohortResult, CohortResultCreate, CohortResultUpdate]
+):
     def __init__(self):
         super().__init__(CohortResult)
+
+    def _normalize_patient_ids(self, value: object) -> List[str]:
+        """Normalize patient IDs coming from DB rows or serialized JSON-like payloads."""
+        if value is None:
+            return []
+
+        if isinstance(value, list):
+            patient_ids: List[str] = []
+            for item in value:
+                patient_ids.extend(self._normalize_patient_ids(item))
+            return patient_ids
+
+        if isinstance(value, str):
+            raw_value = value.strip()
+            if not raw_value:
+                return []
+
+            if raw_value.startswith("[") and raw_value.endswith("]"):
+                try:
+                    decoded = json.loads(raw_value)
+                    return self._normalize_patient_ids(decoded)
+                except json.JSONDecodeError:
+                    pass
+
+            normalized = raw_value.strip('"').strip("'")
+            return [normalized] if normalized else []
+
+        normalized = str(value).strip().strip('"').strip("'")
+        return [normalized] if normalized else []
+
+    def _collect_patient_ids_for_cohort(
+        self, db: Session, *, cohort_id: int
+    ) -> List[str]:
+        rows = (
+            db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
+        )
+
+        patient_ids: List[str] = []
+        for row in rows:
+            value = row[0]
+            patient_ids.extend(self._normalize_patient_ids(value))
+
+        # Preserve insertion order while deduplicating.
+        return list(dict.fromkeys(patient_ids))
+
+    def _update_cohort_execution_and_v6(
+        self,
+        db: Session,
+        *,
+        cohort: Cohort,
+        access_token: str,
+    ) -> None:
+        # Persist EXECUTED status as soon as cohort results have been stored.
+        cohort.status = CohortStatus.EXECUTED.value
+        db.add(cohort)
+        db.commit()
+        db.refresh(cohort)
+
+        analysis = db.query(Analysis).filter(Analysis.id == cohort.analysis_id).first()
+        if not analysis:
+            raise ValueError(
+                f"Analysis {cohort.analysis_id} not found for cohort {cohort.id}"
+            )
+
+        if not analysis.session_id_vantage:
+            raise ValueError(
+                f"Analysis {analysis.id} does not have a Vantage6 session ID"
+            )
+
+        metadata = (
+            db.query(MetadataSearch)
+            .filter(MetadataSearch.workspace_id == cohort.workspace_id)
+            .first()
+        )
+        if not metadata:
+            raise ValueError(f"Metadata for workspace {cohort.workspace_id} not found")
+
+        features = metadata.type_cancer
+        if features == "H&N":
+            features = typeOfDiseases.HAndN.value
+
+        patient_ids = self._collect_patient_ids_for_cohort(db, cohort_id=cohort.id)
+        logger.info(
+            "Collected %d patient IDs for cohort_id=%s", len(patient_ids), cohort.id
+        )
+
+        if not patient_ids:
+            raise ValueError(
+                f"No patient IDs found in cohort results for cohort {cohort.id}"
+            )
+
+        logger.info(
+            "[V6] Creating cohort dataframe for cohort_id=%s session_id=%s",
+            cohort.id,
+            analysis.session_id_vantage,
+        )
+
+        dataframe_id = vantage6_service.create_new_cohort(
+            access_token=access_token,
+            session_id=analysis.session_id_vantage,
+            features=features,
+            patient_ids=patient_ids,
+        )
+
+        if dataframe_id in (None, -1):
+            raise RuntimeError("Failed to create cohort in Vantage6")
+
+        cohort.dataframe_vantage_id = dataframe_id
+
+        db.add(cohort)
+        db.commit()
+        db.refresh(cohort)
 
     def get_by_cohort_and_data_id(
         self, db: Session, *, cohort_id: int, data_id: List[str]
@@ -25,13 +148,16 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
         return (
             db.query(self.model)
             .filter(
-                and_(
-                    self.model.cohort_id == cohort_id,
-                    self.model.data_id == data_id
-                )
+                and_(self.model.cohort_id == cohort_id, self.model.data_id == data_id)
             )
             .first()
         )
+
+    def get_by_cohort_last(self, db: Session, *, cohort_id: int) -> CohortResult:
+        """
+        Get the last cohort result for a specific cohort.
+        """
+        return db.query(self.model).filter(self.model.cohort_id == cohort_id).first()
 
     def get_by_cohort(
         self, db: Session, *, cohort_id: int, skip: int = 0, limit: int = 100
@@ -48,7 +174,7 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
         )
 
     def create_for_cohort(
-        self, db: Session, *, obj_in: CohortResultCreate
+        self, db: Session, *, obj_in: CohortResultCreate, access_token: str
     ) -> CohortResult:
         """
         Create a new cohort result.
@@ -58,26 +184,41 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
         if not cohort:
             raise ValueError(f"Cohort with ID {obj_in.cohort_id} not found")
 
-        # Check if this combination already exists
-        existing = self.get_by_cohort_and_data_id(
-            db, cohort_id=obj_in.cohort_id, data_id=obj_in.data_id
-        )
-        if existing:
-            raise ValueError(
-                f"CohortResult with cohort_id={obj_in.cohort_id} and data_id={obj_in.data_id} already exists"
-            )
+        # Upsert: overwrite existing data_id if a record already exists for this cohort.
+        existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
 
-        db_obj = CohortResult(
-            cohort_id=obj_in.cohort_id,
-            data_id=obj_in.data_id
+        if existing:
+            existing.data_id = obj_in.data_id
+            db.add(existing)
+            db.commit()
+            db.refresh(existing)
+            db_obj = existing
+        else:
+            db_obj = CohortResult(cohort_id=obj_in.cohort_id, data_id=obj_in.data_id)
+            db.add(db_obj)
+            db.commit()
+            db.refresh(db_obj)
+
+        logger.info(
+            "Cohort result created/updated with ID %s for cohort_id=%s ",
+            db_obj.id,
+            obj_in.cohort_id,
         )
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        self._update_cohort_execution_and_v6(
+            db,
+            cohort=cohort,
+            access_token=access_token,
+        )
+
         return db_obj
 
     def update_cohort_result(
-        self, db: Session, *, cohort_id: int, data_id: List[str], obj_in: CohortResultUpdate
+        self,
+        db: Session,
+        *,
+        cohort_id: int,
+        data_id: List[str],
+        obj_in: CohortResultUpdate,
     ) -> CohortResult:
         """
         Update a cohort result by cohort_id and data_id.
@@ -91,7 +232,7 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
             )
 
         update_data = obj_in.model_dump(exclude_unset=True)
-        
+
         for field, value in update_data.items():
             setattr(db_obj, field, value)
 
@@ -118,9 +259,7 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
         db.commit()
         return True
 
-    def delete_all_for_cohort(
-        self, db: Session, *, cohort_id: int
-    ) -> int:
+    def delete_all_for_cohort(self, db: Session, *, cohort_id: int) -> int:
         """
         Delete all cohort results for a specific cohort.
         Returns the number of deleted records.
@@ -131,9 +270,7 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
             raise ValueError(f"Cohort with ID {cohort_id} not found")
 
         deleted_count = (
-            db.query(self.model)
-            .filter(self.model.cohort_id == cohort_id)
-            .delete()
+            db.query(self.model).filter(self.model.cohort_id == cohort_id).delete()
         )
         db.commit()
         return deleted_count
@@ -145,26 +282,23 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
         Get all data_ids for a specific cohort.
         """
         results = (
-            db.query(self.model.data_id)
-            .filter(self.model.cohort_id == cohort_id)
-            .all()
+            db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
         )
         return [result[0] for result in results]
 
-    def count_results_for_cohort(
-        self, db: Session, *, cohort_id: int
-    ) -> int:
+    def count_results_for_cohort(self, db: Session, *, cohort_id: int) -> int:
         """
         Count the number of results for a specific cohort.
         """
-        return (
-            db.query(self.model)
-            .filter(self.model.cohort_id == cohort_id)
-            .count()
-        )
+        return db.query(self.model).filter(self.model.cohort_id == cohort_id).count()
 
     def bulk_create_for_cohort(
-        self, db: Session, *, cohort_id: int, data_ids: List[List[str]]
+        self,
+        db: Session,
+        *,
+        cohort_id: int,
+        data_ids: List[List[str]],
+        access_token: str,
     ) -> List[CohortResult]:
         """
         Create multiple cohort results for a cohort in a single transaction.
@@ -182,10 +316,7 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
                 db, cohort_id=cohort_id, data_id=data_id
             )
             if not existing:
-                db_obj = CohortResult(
-                    cohort_id=cohort_id,
-                    data_id=data_id
-                )
+                db_obj = CohortResult(cohort_id=cohort_id, data_id=data_id)
                 db_objs.append(db_obj)
 
         if db_objs:
@@ -193,6 +324,12 @@ class CohortResultService(BaseService[CohortResult, CohortResultCreate, CohortRe
             db.commit()
             for db_obj in db_objs:
                 db.refresh(db_obj)
+
+            self._update_cohort_execution_and_v6(
+                db,
+                cohort=cohort,
+                access_token=access_token,
+            )
 
         return db_objs
 

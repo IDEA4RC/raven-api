@@ -44,9 +44,9 @@ def create_cohort(
             cohort_in.analysis_id,
         )
         user = current_user.user
-        access_token = current_user.access_token
+        # access_token = current_user.access_token
         cohort = cohort_service.create_with_history_v2(
-            db=db, obj_in=cohort_in, user_id=user.id, access_token=TOKEN_V6
+            db=db, obj_in=cohort_in, user_id=user.id
         )
         return cohort
     except ValueError as e:
@@ -218,10 +218,10 @@ def create_cohort(
 
     try:
         user = current_user.user
-        access_token = current_user.access_token
+        # access_token = current_user.access_token
 
         cohort = cohort_service.create_with_history_v2(
-            db=db, obj_in=cohort_in, user_id=user.id, access_token=TOKEN_V6
+            db=db, obj_in=cohort_in, user_id=user.id  # , access_token=TOKEN_V6
         )
         return cohort
     except ValueError as e:

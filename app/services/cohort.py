@@ -5,9 +5,7 @@ Service for handling cohort operations in the application.
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from app.models.metadata_search import MetadataSearch
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from app.models.cohort import Cohort
 from app.models.workspace import Workspace
@@ -15,8 +13,6 @@ from app.models.analysis import Analysis
 from app.models.workspace_history import WorkspaceHistory
 from app.schemas.cohort import CohortCreate, CohortUpdate, CohortStatusUpdate
 from app.services.base import BaseService
-from app.utils.constants import CohortStatus, typeOfDiseases
-from app.services.vantage_6 import vantage6_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -223,7 +219,6 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         *,
         obj_in: CohortCreate,
         user_id: int,
-        access_token: str,
     ) -> Cohort:
         """
         Create a new cohort and log the creation in the workspace history.
@@ -243,38 +238,6 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
                 raise ValueError(f"Workspace {workspace_id} not found")
             # Create the cohort
 
-            metadata = (
-                db.query(MetadataSearch)
-                .filter(MetadataSearch.workspace_id == workspace.id)
-                .first()
-            )
-            if not metadata:
-                raise ValueError(f"Metadata for workspace {workspace.id} not found")
-
-            features = metadata.type_cancer
-            if features == "H&N":
-                features = typeOfDiseases.HAndN.value
-            if not analysis.session_id_vantage:
-                raise ValueError(
-                    f"Analysis {analysis.id} does not have a Vantage6 session ID"
-                )
-
-            logger.info(
-                "[V6] Creating cohort in Vantage6 session_id=%s",
-                analysis.session_id_vantage,
-            )
-
-            dataframe_id = vantage6_service.create_new_cohort(
-                access_token=access_token,
-                session_id=analysis.session_id_vantage,
-                features=features,
-            )
-
-            if not dataframe_id:
-                raise RuntimeError("Failed to create cohort in Vantage6")
-
-            logger.info("[V6] dataframe_id received: %s", dataframe_id)
-
             obj_in_data = obj_in.model_dump()
 
             now = datetime.now(timezone.utc)
@@ -286,7 +249,6 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
                     "update_date": now,
                     "user_id": user_id,
                     "workspace_id": workspace.id,
-                    "dataframe_vantage_id": dataframe_id,
                 }
             )
             db_obj = Cohort(**obj_in_data)

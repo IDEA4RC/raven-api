@@ -46,33 +46,6 @@ from app.models.analysis import Analysis
 
 from app.utils.constants import API_BASE, COLLABORATION_ID, ORGANIZATION_IDS, ALGORITHMS
 
-# TODO: Remove when multi-node support is fully enabled in Vantage6
-USE_STATIC_ORGANIZATIONS = False
-_STATIC_ORGANIZATIONS = {
-    1: "root",
-}
-
-VARIABLES = [
-    "age",  # num
-    "tumor_size",  # num
-    "histology",  # cat
-    "sex",  # cat
-    "fnclcc_grade",  # cat
-    "multifocality",  # cat
-    "completeness_of_resection",  # cat
-    "tumor_rupture",  # cat
-    "pre_operative_chemo",  # cat
-    "post_operative_chemo",  # cat
-    "pre_operative_radio",  # cat
-    "post_operative_radio",  # cat
-    "local_recurrence",  # cat
-    "distant_metastasis",  # cat
-    "status",  # cat
-]
-#
-# From these variables, the numeric variables are:
-NUMERIC_VARIABLES = ["age", "tumor_size"]
-
 
 class Vantage6Service(
     BaseService[Workspace, WorkspaceCreateV2, WorkspaceUpdateVantage6Study]
@@ -264,12 +237,6 @@ class Vantage6Service(
         """
         Returns organizations as {id: name}.
         """
-
-        # Temporary workaround for single-node environments
-        if USE_STATIC_ORGANIZATIONS:
-            logger.warning("[V6] Using static organizations (single-node workaround)")
-            return _STATIC_ORGANIZATIONS.copy()
-
         logger.info(
             "[V6] Fetching organizations from Vantage6 (collaboration_id=%s)",
             collaboration_id,
@@ -450,7 +417,12 @@ class Vantage6Service(
         return -1
 
     def create_new_cohort(
-        self, *, access_token: str, session_id: int, features: str
+        self,
+        *,
+        access_token: str,
+        session_id: int,
+        features: str,
+        patient_ids: List[Any] = None,
     ) -> int:
         """
         Crea una nuevo cohort en Vantage 6
@@ -477,9 +449,11 @@ class Vantage6Service(
         }
 
         arguments = {
-            "patient_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            "patient_ids": patient_ids,
             "features": features,
         }
+
+        logger.info("[V6] Arguments prepared create_new_cohort: %s", arguments)
 
         payload = {
             "label": LABEL,
@@ -500,6 +474,11 @@ class Vantage6Service(
                 ],
             },
         }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 to create cohort:\n%s",
+            json.dumps(payload, indent=2),
+        )
 
         try:
             with httpx.Client(timeout=self.timeout) as client:
@@ -702,9 +681,9 @@ class Vantage6Service(
                 description="Summary analysis",
                 task_id=task_id,
             )
- 
+
             algorithm.cohorts = cohorts
- 
+
             db.add(algorithm)
             db.commit()
             db.refresh(algorithm)
@@ -1338,7 +1317,6 @@ class Vantage6Service(
                 subtask_id,
             )
             raise RuntimeError(f"Failed to retrieve task results: {str(exc)}")
-
 
     def create_basic_arithmetic(
         self,
