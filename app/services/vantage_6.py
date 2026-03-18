@@ -29,6 +29,10 @@ from app.schemas.data_preparation import (
     DataPreparationRequest,
     TTestRequest,
     BasicArithmeticRequest,
+    MergeCategoriesRequest,
+    TimedeltaRequest,
+    KaplanMeierRequest,
+    OneHotEncodingRequest,
     V6TaskResult,
     V6RunResult,
     V6DecodedResult,
@@ -1318,6 +1322,157 @@ class Vantage6Service(
             )
             raise RuntimeError(f"Failed to retrieve task results: {str(exc)}")
 
+    def create_kaplan_meier(
+        self,
+        db: Session,
+        *,
+        access_token: str,
+        km_in: KaplanMeierRequest,
+    ) -> V6TaskResult:
+        """
+        Executes a Kaplan-Meier survival analysis task in Vantage6.
+        Returns both the KM estimate and the Log-Rank test in a single response.
+        """
+        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        METHOD = "kaplan_meier_central"
+
+        logger.info(
+            "[V6] create_kaplan_meier START for km_in=%s",
+            km_in,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation URL not configured")
+            return
+
+        workspace = (
+            db.query(Workspace).filter(Workspace.id == km_in.workspace_id).first()
+        )
+        if not workspace:
+            raise ValueError(f"Workspace with id {km_in.workspace_id} not found")
+
+        analysis = db.query(Analysis).filter(Analysis.id == km_in.analysis_id).first()
+        if not analysis:
+            raise ValueError(f"Analysis with id {km_in.analysis_id} not found")
+
+        cohorts = db.query(Cohort).filter(Cohort.id.in_(km_in.cohorts_ids)).all()
+        if not cohorts:
+            raise ValueError("No cohorts found for the provided IDs")
+
+        dataframe_ids = [
+            cohort.dataframe_vantage_id
+            for cohort in cohorts
+            if cohort.dataframe_vantage_id is not None
+        ]
+
+        logger.info("[V6] workspace from db =%s", workspace)
+        logger.info("[V6] analysis from db =%s", analysis)
+        logger.info("[V6] cohorts from db =%s", dataframe_ids)
+
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        arguments = {
+            "organizations_to_include": org_ids,
+            "time_column_name": km_in.time_column_name,
+            "censor_column_name": km_in.censor_column_name,
+        }
+        if km_in.strata_column_name is not None:
+            arguments["strata_column_name"] = km_in.strata_column_name
+
+        payload = {
+            "name": "Human-readable name of the task",
+            "image": IMAGE,
+            "description": "Description of the task",
+            "action": "central_compute",
+            "method": METHOD,
+            "organizations": [
+                {
+                    "id": org_ids[0],  # Central task
+                    "arguments": base64.b64encode(
+                        json.dumps(arguments).encode("UTF-8")
+                    ).decode("UTF-8"),
+                }
+            ],
+            "databases": [
+                [
+                    {"type": "dataframe", "dataframe_id": df_id}
+                    for df_id in dataframe_ids
+                ]
+            ],
+            "session_id": analysis.session_id_vantage,
+            "study_id": workspace.v6_study_id,
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 for kaplan_meier:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/task",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["id"]
+            job_id = response_data["job_id"]
+
+            columns = [km_in.time_column_name, km_in.censor_column_name]
+            if km_in.strata_column_name:
+                columns.append(km_in.strata_column_name)
+
+            algorithm = Algorithm(
+                method_name=ALGORITHMS.KAPLAN_MEIER,
+                description="Kaplan-Meier survival analysis",
+                input=json.dumps(columns),
+                task_id=task_id,
+            )
+
+            algorithm.cohorts = cohorts
+
+            db.add(algorithm)
+            db.commit()
+            db.refresh(algorithm)
+
+            logger.info("[V6] Extracted job_id IDs: %s", job_id)
+
+            return V6TaskResult(task_id=task_id, job_id=job_id)
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 kaplan_meier failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(task_id=-1, job_id=-1)
+
     def create_basic_arithmetic(
         self,
         *,
@@ -1385,6 +1540,298 @@ class Vantage6Service(
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.post(
                     f"{self.base_url}/session/dataframe/{basic_arithmetic_in.dataframe_id}/preprocess",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["last_session_task"]["id"]
+            job_id = response_data["last_session_task"]["job_id"]
+
+            return V6TaskResult(task_id=task_id, job_id=job_id)
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 preprocessing failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(task_id=-1, job_id=-1)
+
+    def create_merge_categories(
+        self,
+        *,
+        access_token: str,
+        merge_categories_in: MergeCategoriesRequest,
+    ) -> V6TaskResult:
+        """
+        Executes a merge_categories preprocessing task in Vantage6.
+        Remaps categories of an existing column into a new output column.
+        """
+        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        METHOD = "merge_categories"
+
+        logger.info(
+            "[V6] create_merge_categories START for dataframe_id=%s",
+            merge_categories_in.dataframe_id,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation URL not configured")
+            return
+
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        arguments = {
+            "column": merge_categories_in.column,
+            "output_column": merge_categories_in.output_column,
+            "mapping": merge_categories_in.mapping,
+        }
+
+        payload = {
+            "dataframe_id": merge_categories_in.dataframe_id,
+            "task": {
+                "image": IMAGE,
+                "method": METHOD,
+                "organizations": [
+                    {
+                        "id": org_id,
+                        "arguments": base64.b64encode(
+                            json.dumps(arguments).encode("UTF-8")
+                        ).decode("UTF-8"),
+                    }
+                    for org_id in org_ids
+                ],
+            },
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 for merge_categories:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/session/dataframe/{merge_categories_in.dataframe_id}/preprocess",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["last_session_task"]["id"]
+            job_id = response_data["last_session_task"]["job_id"]
+
+            return V6TaskResult(task_id=task_id, job_id=job_id)
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 preprocessing failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(task_id=-1, job_id=-1)
+
+    def create_timedelta(
+        self,
+        *,
+        access_token: str,
+        timedelta_in: TimedeltaRequest,
+    ) -> V6TaskResult:
+        """
+        Executes a timedelta preprocessing task in Vantage6.
+        Computes the number of days from a date column to today and stores it in output_column.
+        """
+        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        METHOD = "timedelta"
+
+        logger.info(
+            "[V6] create_timedelta START for dataframe_id=%s",
+            timedelta_in.dataframe_id,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation URL not configured")
+            return
+
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        arguments = {
+            "column": timedelta_in.column,
+            "output_column": timedelta_in.output_column,
+        }
+
+        payload = {
+            "dataframe_id": timedelta_in.dataframe_id,
+            "task": {
+                "image": IMAGE,
+                "method": METHOD,
+                "organizations": [
+                    {
+                        "id": org_id,
+                        "arguments": base64.b64encode(
+                            json.dumps(arguments).encode("UTF-8")
+                        ).decode("UTF-8"),
+                    }
+                    for org_id in org_ids
+                ],
+            },
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 for timedelta:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/session/dataframe/{timedelta_in.dataframe_id}/preprocess",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["last_session_task"]["id"]
+            job_id = response_data["last_session_task"]["job_id"]
+
+            return V6TaskResult(task_id=task_id, job_id=job_id)
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 preprocessing failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(task_id=-1, job_id=-1)
+
+    def create_one_hot_encoding(
+        self,
+        *,
+        access_token: str,
+        one_hot_encoding_in: OneHotEncodingRequest,
+    ) -> V6TaskResult:
+        """
+        Executes a one_hot_encode preprocessing task in Vantage6.
+        Creates a binary column for each category in the specified column.
+        """
+        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        METHOD = "one_hot_encode"
+
+        logger.info(
+            "[V6] create_one_hot_encoding START for dataframe_id=%s",
+            one_hot_encoding_in.dataframe_id,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation URL not configured")
+            return
+
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        arguments = {
+            "column": one_hot_encoding_in.column,
+            "prefix": one_hot_encoding_in.prefix,
+        }
+
+        payload = {
+            "dataframe_id": one_hot_encoding_in.dataframe_id,
+            "task": {
+                "image": IMAGE,
+                "method": METHOD,
+                "organizations": [
+                    {
+                        "id": org_id,
+                        "arguments": base64.b64encode(
+                            json.dumps(arguments).encode("UTF-8")
+                        ).decode("UTF-8"),
+                    }
+                    for org_id in org_ids
+                ],
+            },
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 for one_hot_encode:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/session/dataframe/{one_hot_encoding_in.dataframe_id}/preprocess",
                     json=payload,
                     headers=headers,
                 )

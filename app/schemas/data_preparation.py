@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any, List, Dict, Union
+from typing import Any, List, Dict, Optional, Union
 
 
 class DataPreparationRequest(BaseModel):
@@ -57,3 +57,31 @@ class BasicArithmeticRequest(BaseModel):
     column2: Union[str, int]
     operation: str
     output_column: str
+
+
+class MergeCategoriesRequest(BaseModel):
+    dataframe_id: int
+    column: str
+    output_column: str
+    mapping: Dict[str, List[str]]
+
+
+class TimedeltaRequest(BaseModel):
+    dataframe_id: int
+    column: str
+    output_column: str
+
+
+class OneHotEncodingRequest(BaseModel):
+    dataframe_id: int
+    column: str
+    prefix: str
+
+
+class KaplanMeierRequest(BaseModel):
+    workspace_id: int
+    analysis_id: int
+    cohorts_ids: List[int]
+    time_column_name: str
+    censor_column_name: str
+    strata_column_name: Optional[str] = None
