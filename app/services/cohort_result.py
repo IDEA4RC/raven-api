@@ -92,18 +92,11 @@ class CohortResultService(
     def _collect_patient_ids_for_cohort(
         self, db: Session, *, cohort_id: int
     ) -> List[int]:
-        rows = (
-            db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
+        cohort_result = (
+            db.query(CohortResult).filter(CohortResult.cohort_id == cohort_id).first()
         )
 
-        patient_ids: List[int] = []
-        for row in rows:
-            value = row[0]
-            if isinstance(value, list):
-                patient_ids.extend(int(v) for v in value if v is not None)
-
-        # Preserve insertion order while deduplicating.
-        return list(dict.fromkeys(patient_ids))
+        return cohort_result.data_id
 
     def _update_cohort_execution_and_v6(
         self,
@@ -143,7 +136,10 @@ class CohortResultService(
 
         patient_ids = self._collect_patient_ids_for_cohort(db, cohort_id=cohort.id)
         logger.info(
-            "Collected %d patient IDs for cohort_id=%s", len(patient_ids), cohort.id
+            "Collected %d patient IDs for cohort_id=%s patient list=%s",
+            len(patient_ids),
+            cohort.id,
+            patient_ids,
         )
 
         if not patient_ids:
