@@ -96,7 +96,11 @@ class CohortResultService(
             db.query(CohortResult).filter(CohortResult.cohort_id == cohort_id).first()
         )
 
-        return cohort_result.data_id
+        if not cohort_result or not cohort_result.data_id:
+            return []
+        patient_list = self._normalize_data_ids_to_ints(cohort_result.data_id)
+
+        return list(dict.fromkeys(patient_list))
 
     def _update_cohort_execution_and_v6(
         self,
