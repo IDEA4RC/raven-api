@@ -1,35 +1,39 @@
-"""
-Schema de organización para validación de datos y serialización
-"""
+"""Organization schemas."""
 
 from typing import Optional
-from pydantic import BaseModel
+
+from pydantic import BaseModel, ConfigDict
 
 
 class OrganizationBase(BaseModel):
-    """Schema base para organizaciones."""
-    name: str
+    """Base schema for organizations."""
+
+    org_name: str
     description: Optional[str] = None
-    is_active: Optional[bool] = True
+    org_city: Optional[str] = None
+    org_type: Optional[int] = None
+    data_available: bool = False
 
 
 class OrganizationCreate(OrganizationBase):
-    """Schema para crear una organización."""
+    """Schema for creating an organization."""
+
     pass
 
 
 class OrganizationUpdate(BaseModel):
-    """Schema para actualizar una organización."""
-    name: Optional[str] = None
+    """Schema for updating an organization."""
+
+    org_name: Optional[str] = None
     description: Optional[str] = None
-    is_active: Optional[bool] = None
+    org_city: Optional[str] = None
+    org_type: Optional[int] = None
+    data_available: Optional[bool] = None
 
 
 class Organization(OrganizationBase):
-    """Schema para leer una organización."""
+    """Schema for reading an organization."""
+
     id: int
-    
-    class Config:
-        """Configuration for the schema."""
-        from_attributes = True
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)

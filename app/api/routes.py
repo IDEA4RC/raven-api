@@ -9,6 +9,7 @@ from app.api.endpoints import (
     health,
     workspace,
     permit,
+    organization,
     workspace_history,
     auth,
     cohort,
@@ -35,6 +36,11 @@ api_router.include_router(
 
 # Permit endpoints
 api_router.include_router(permit.router, prefix="/permits", tags=["Permits endpoint"])
+
+# Organization endpoints
+api_router.include_router(
+    organization.router, prefix="/organizations", tags=["Organizations endpoint"]
+)
 
 # Cohort endpoints
 api_router.include_router(cohort.router, prefix="/cohorts", tags=["Cohorts endpoint"])

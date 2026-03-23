@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 import logging
 import json
+import re
 
 from app.models.cohort_result import CohortResult
 from app.models.cohort import Cohort
@@ -55,6 +56,38 @@ class CohortResultService(
 
         normalized = str(value).strip().strip('"').strip("'")
         return [normalized] if normalized else []
+
+    def _normalize_data_ids_to_ints(self, value: object) -> List[int]:
+        """Normalize incoming data_id payloads into a flat list of integers."""
+        if value is None:
+            return []
+
+        if isinstance(value, int):
+            return [value]
+
+        if isinstance(value, (list, tuple, set)):
+            numbers: List[int] = []
+            for item in value:
+                numbers.extend(self._normalize_data_ids_to_ints(item))
+            return numbers
+
+        if isinstance(value, str):
+            raw_value = value.strip()
+            if not raw_value:
+                return []
+
+            if (raw_value.startswith("[") and raw_value.endswith("]")) or (
+                raw_value.startswith("{") and raw_value.endswith("}")
+            ):
+                try:
+                    decoded = json.loads(raw_value)
+                    return self._normalize_data_ids_to_ints(decoded)
+                except json.JSONDecodeError:
+                    pass
+
+            return [int(n) for n in re.findall(r"\d+", raw_value)]
+
+        return self._normalize_data_ids_to_ints(str(value))
 
     def _collect_patient_ids_for_cohort(
         self, db: Session, *, cohort_id: int
@@ -140,7 +173,7 @@ class CohortResultService(
         db.refresh(cohort)
 
     def get_by_cohort_and_data_id(
-        self, db: Session, *, cohort_id: int, data_id: List[str]
+        self, db: Session, *, cohort_id: int, data_id: List[int]
     ) -> Optional[CohortResult]:
         """
         Get a cohort result by cohort_id and data_id.
@@ -187,14 +220,22 @@ class CohortResultService(
         # Upsert: overwrite existing data_id if a record already exists for this cohort.
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
 
+        normalized_data_ids = list(
+            dict.fromkeys(self._normalize_data_ids_to_ints(obj_in.data_id))
+        )
+        if not normalized_data_ids:
+            raise ValueError("data_id must contain at least one integer value")
+
         if existing:
-            existing.data_id = obj_in.data_id
+            existing.data_id = normalized_data_ids
             db.add(existing)
             db.commit()
             db.refresh(existing)
             db_obj = existing
         else:
-            db_obj = CohortResult(cohort_id=obj_in.cohort_id, data_id=obj_in.data_id)
+            db_obj = CohortResult(
+                cohort_id=obj_in.cohort_id, data_id=normalized_data_ids
+            )
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
@@ -217,7 +258,7 @@ class CohortResultService(
         db: Session,
         *,
         cohort_id: int,
-        data_id: List[str],
+        data_id: List[int],
         obj_in: CohortResultUpdate,
     ) -> CohortResult:
         """
@@ -233,6 +274,14 @@ class CohortResultService(
 
         update_data = obj_in.model_dump(exclude_unset=True)
 
+        if "data_id" in update_data and update_data["data_id"] is not None:
+            normalized_data_ids = list(
+                dict.fromkeys(self._normalize_data_ids_to_ints(update_data["data_id"]))
+            )
+            if not normalized_data_ids:
+                raise ValueError("data_id must contain at least one integer value")
+            update_data["data_id"] = normalized_data_ids
+
         for field, value in update_data.items():
             setattr(db_obj, field, value)
 
@@ -242,7 +291,7 @@ class CohortResultService(
         return db_obj
 
     def delete_cohort_result(
-        self, db: Session, *, cohort_id: int, data_id: List[str]
+        self, db: Session, *, cohort_id: int, data_id: List[int]
     ) -> bool:
         """
         Delete a cohort result by cohort_id and data_id.
@@ -277,14 +326,17 @@ class CohortResultService(
 
     def get_data_ids_for_cohort(
         self, db: Session, *, cohort_id: int
-    ) -> List[List[str]]:
+    ) -> List[List[int]]:
         """
         Get all data_ids for a specific cohort.
         """
         results = (
             db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
         )
-        return [result[0] for result in results]
+        return [
+            list(dict.fromkeys(self._normalize_data_ids_to_ints(result[0])))
+            for result in results
+        ]
 
     def count_results_for_cohort(self, db: Session, *, cohort_id: int) -> int:
         """
@@ -297,7 +349,7 @@ class CohortResultService(
         db: Session,
         *,
         cohort_id: int,
-        data_ids: List[List[str]],
+        data_ids: List[List[int]],
         access_token: str,
     ) -> List[CohortResult]:
         """
@@ -311,12 +363,18 @@ class CohortResultService(
         # Create all the objects
         db_objs = []
         for data_id in data_ids:
+            normalized_data_ids = list(
+                dict.fromkeys(self._normalize_data_ids_to_ints(data_id))
+            )
+            if not normalized_data_ids:
+                continue
+
             # Check if this combination already exists
             existing = self.get_by_cohort_and_data_id(
-                db, cohort_id=cohort_id, data_id=data_id
+                db, cohort_id=cohort_id, data_id=normalized_data_ids
             )
             if not existing:
-                db_obj = CohortResult(cohort_id=cohort_id, data_id=data_id)
+                db_obj = CohortResult(cohort_id=cohort_id, data_id=normalized_data_ids)
                 db_objs.append(db_obj)
 
         if db_objs:

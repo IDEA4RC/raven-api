@@ -71,3 +71,17 @@ class ALGORITHMS(str, Enum):
     TABLE1 = "table1"
     BASIC_ARITHMETIC = "basic_arithmetic"
     SUMMARY = "summary"
+
+
+class ORGANIZATION_TYPES(int, Enum):
+    """Tipos de organizaciones"""
+
+    HOSPITAL = 1
+    OTHER = 2
+
+
+class ORGANIZATION_DATA_AVAILABILITY(int, Enum):
+    """Disponibilidad de datos en las organizaciones"""
+
+    AVAILABLE = True
+    NOT_AVAILABLE = False
