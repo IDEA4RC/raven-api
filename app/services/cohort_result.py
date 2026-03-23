@@ -91,15 +91,16 @@ class CohortResultService(
 
     def _collect_patient_ids_for_cohort(
         self, db: Session, *, cohort_id: int
-    ) -> List[str]:
+    ) -> List[int]:
         rows = (
             db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
         )
 
-        patient_ids: List[str] = []
+        patient_ids: List[int] = []
         for row in rows:
             value = row[0]
-            patient_ids.extend(self._normalize_patient_ids(value))
+            if isinstance(value, list):
+                patient_ids.extend(int(v) for v in value if v is not None)
 
         # Preserve insertion order while deduplicating.
         return list(dict.fromkeys(patient_ids))
