@@ -85,3 +85,19 @@ class KaplanMeierRequest(BaseModel):
     time_column_name: str
     censor_column_name: str
     strata_column_name: Optional[str] = None
+
+
+class GLMRequest(BaseModel):
+    workspace_id: int
+    analysis_id: int
+    cohorts_ids: List[int]
+    family: str
+    predictor_variables: List[str]
+    outcome_variable: str
+
+
+class MergeVariablesRequest(BaseModel):
+    dataframe_id: int
+    column1: str
+    column2: str
+    output_column: str

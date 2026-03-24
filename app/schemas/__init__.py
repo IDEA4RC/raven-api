@@ -38,6 +38,8 @@ from app.schemas.data_preparation import (
     TimedeltaRequest,
     KaplanMeierRequest,
     OneHotEncodingRequest,
+    GLMRequest,
+    MergeVariablesRequest,
 )
 from app.schemas.metadata_search import MetadataSearch
 from app.schemas.algorithms import (
@@ -92,6 +94,8 @@ __all__ = [
     "TimedeltaRequest",
     "KaplanMeierRequest",
     "OneHotEncodingRequest",
+    "GLMRequest",
+    "MergeVariablesRequest",
     "Algorithm",
     "AlgorithmBase",
     "AlgorithmCreate",

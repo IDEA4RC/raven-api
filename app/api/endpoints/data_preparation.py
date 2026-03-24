@@ -135,6 +135,39 @@ def create_data_preparation_crosstab(
 
 
 @router.post(
+    "/create_glm",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_glm(
+    *,
+    db: Session = Depends(get_db),
+    glm_data: schemas.GLMRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a Generalized Linear Model (GLM) analytics task in Vantage6.
+    Returns task_id and job_id for polling.
+    """
+    try:
+        result = service.create_glm(
+            db=db,
+            access_token=TOKEN_V6,
+            glm_in=glm_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No cohorts found for the provided IDs"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
     "/create_kaplan_meier",
     response_model=schemas.V6TaskResult,
     status_code=status.HTTP_201_CREATED,
@@ -395,6 +428,36 @@ def create_one_hot_encoding(
             raise HTTPException(
                 status_code=404, detail="No result from Vantage6 preprocessing"
             )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/create_merge_variables",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_merge_variables(
+    *,
+    merge_variables_data: schemas.MergeVariablesRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a merge_variables preprocessing task in Vantage6.
+    Concatenates two columns into a new output column.
+    Returns task_id and job_id for polling.
+    """
+    try:
+        result = service.create_merge_variables(
+            access_token=TOKEN_V6,
+            merge_variables_in=merge_variables_data,
+        )
+
+        if not result:
+            raise HTTPException(status_code=404, detail="merge_variables task failed")
 
         return result
 
