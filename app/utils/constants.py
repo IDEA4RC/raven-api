@@ -49,7 +49,7 @@ API_BASE = "https://vantage6-core.orchestrator.idea.lst.tfo.upm.es/server"
 
 COLLABORATION_ID = 3
 
-ORGANIZATION_IDS = {1, 4}
+ORGANIZATION_IDS = {1, 4, 5}
 
 
 class typeOfDiseases(Enum):
