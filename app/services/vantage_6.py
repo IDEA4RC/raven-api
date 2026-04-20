@@ -433,7 +433,7 @@ class Vantage6Service(
         """
         Crea una nuevo cohort en Vantage 6
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/sessions:latest"
+        IMAGE = "ghcr.io/iknl/sessions:latest"
         LABEL = "omop"
         METHOD = "create_cohort"
 
@@ -557,7 +557,7 @@ class Vantage6Service(
         """
         Crea un nuevo data data_preparation en Vantage 6
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        IMAGE = "ghcr.io/iknl/analytics:latest"
         METHOD = "summary"
 
         logger.info(
@@ -724,7 +724,7 @@ class Vantage6Service(
         """
         Crea un nuevo data data_preparation en Vantage 6
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        IMAGE = "ghcr.io/iknl/analytics:latest"
         METHOD = "crosstab"
 
         logger.info(
@@ -895,7 +895,7 @@ class Vantage6Service(
         """
         Crea un nuevo t-test en Vantage 6
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        IMAGE = "ghcr.io/iknl/analytics:latest"
         METHOD = "t_test_central"
 
         logger.info(
@@ -1334,7 +1334,7 @@ class Vantage6Service(
         """
         Executes a Generalized Linear Model (GLM) analytics task in Vantage6.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        IMAGE = "ghcr.io/iknl/analytics:latest"
         METHOD = "glm"
 
         logger.info("[V6] create_glm START for glm_in=%s", glm_in)
@@ -1479,7 +1479,7 @@ class Vantage6Service(
         Executes a Kaplan-Meier survival analysis task in Vantage6.
         Returns both the KM estimate and the Log-Rank test in a single response.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        IMAGE = "ghcr.io/iknl/analytics:latest"
         METHOD = "kaplan_meier_central"
 
         logger.info(
@@ -1629,7 +1629,7 @@ class Vantage6Service(
         Executes a basic arithmetic preprocessing task in Vantage6.
         Modifies the specified dataframe in place by computing a new column.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        IMAGE = "ghcr.io/iknl/preprocessing:latest"
         METHOD = "basic_arithmetic"
 
         logger.info(
@@ -1728,7 +1728,7 @@ class Vantage6Service(
         Executes a merge_categories preprocessing task in Vantage6.
         Remaps categories of an existing column into a new output column.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        IMAGE = "ghcr.io/iknl/preprocessing:latest"
         METHOD = "merge_categories"
 
         logger.info(
@@ -1826,7 +1826,7 @@ class Vantage6Service(
         Executes a timedelta preprocessing task in Vantage6.
         Computes the number of days from a date column to today and stores it in output_column.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        IMAGE = "ghcr.io/iknl/preprocessing:latest"
         METHOD = "timedelta"
 
         logger.info(
@@ -1923,7 +1923,7 @@ class Vantage6Service(
         Executes a one_hot_encode preprocessing task in Vantage6.
         Creates a binary column for each category in the specified column.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        IMAGE = "ghcr.io/iknl/preprocessing:latest"
         METHOD = "one_hot_encode"
 
         logger.info(
@@ -2020,7 +2020,7 @@ class Vantage6Service(
         Executes a merge_variables preprocessing task in Vantage6.
         Concatenates two columns into a new output column.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/preprocessing:latest"
+        IMAGE = "ghcr.io/iknl/preprocessing:latest"
         METHOD = "merge_variables"
 
         logger.info(
