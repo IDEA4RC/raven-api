@@ -36,6 +36,7 @@ from app.schemas.data_preparation import (
     GLMRequest,
     MergeVariablesRequest,
     V6TaskResult,
+    V6CreateDataFrame,
     V6RunResult,
     V6DecodedResult,
     V6Variables,
@@ -429,7 +430,7 @@ class Vantage6Service(
         session_id: int,
         features: str,
         patient_ids: List[Any] = None,
-    ) -> int:
+    ) -> V6CreateDataFrame:
         """
         Crea una nuevo cohort en Vantage 6
         """
@@ -508,7 +509,12 @@ class Vantage6Service(
             task_id = response_data["last_session_task"]["id"]
             dataframe_id = response_data["id"]
 
-            logger.info("[V6] Extracted dataframe_id IDs: %s", dataframe_id)
+            logger.info(
+                "[V6] Extracted dataframe_id IDs: %s",
+                dataframe_id,
+                " task_ud: %s",
+                task_id,
+            )
 
             with httpx.Client(timeout=self.timeout) as client:
                 responseTask = client.get(
@@ -534,7 +540,7 @@ class Vantage6Service(
 
             logger.info("[V6] Extracted result: %s", result)
 
-            return dataframe_id
+            return V6CreateDataFrame(task_id=task_id, dataframe_id=dataframe_id)
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] Vantage6 organization lookup failed (%s): %s",
@@ -545,7 +551,7 @@ class Vantage6Service(
         except httpx.RequestError as exc:
             logger.error("[V6] Vantage6 unreachable: %s", str(exc))
 
-        return -1
+        return V6CreateDataFrame(task_id=-1, dataframe_id=-1)
 
     def data_preparation(
         self,

@@ -15,6 +15,7 @@ class CohortBase(BaseModel):
     workspace_id: int
     query_execution_id: Optional[int] = None
     dataframe_vantage_id: Optional[int] = None
+    task_id_vantage: Optional[int] = None
 
 
 class CohortCreate(CohortBase):
@@ -38,6 +39,7 @@ class CohortUpdate(BaseModel):
     cohort_query: Optional[str] = None
     status: Optional[int] = None
     dataframe_vantage_id: Optional[int] = None
+    task_id_vantage: Optional[int] = None
 
 
 class Cohort(CohortBase):

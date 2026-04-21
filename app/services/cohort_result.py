@@ -157,17 +157,18 @@ class CohortResultService(
             analysis.session_id_vantage,
         )
 
-        dataframe_id = vantage6_service.create_new_cohort(
+        createDataFrameResponse = vantage6_service.create_new_cohort(
             access_token=access_token,
             session_id=analysis.session_id_vantage,
             features=features,
             patient_ids=patient_ids,
         )
 
-        if dataframe_id in (None, -1):
+        if createDataFrameResponse.dataframe_idº in (None, -1):
             raise RuntimeError("Failed to create cohort in Vantage6")
 
-        cohort.dataframe_vantage_id = dataframe_id
+        cohort.dataframe_vantage_id = createDataFrameResponse.dataframe_id
+        cohort.task_id_vantage = createDataFrameResponse.task_id
 
         db.add(cohort)
         db.commit()

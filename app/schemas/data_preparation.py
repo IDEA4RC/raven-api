@@ -101,3 +101,8 @@ class MergeVariablesRequest(BaseModel):
     column1: str
     column2: str
     output_column: str
+
+
+class V6CreateDataFrame(BaseModel):
+    task_id: int
+    dataframe_id: int

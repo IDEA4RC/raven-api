@@ -25,6 +25,7 @@ class Cohort(Base):
     analysis_id = Column(Integer, ForeignKey("analyses.id", ondelete="CASCADE"))
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"))
     dataframe_vantage_id = Column(Integer)
+    task_id_vantage = Column(Integer, nullable=True)
     query_execution_id = Column(
         Integer, nullable=True
     )  # New field for query execution ID
