@@ -164,7 +164,7 @@ class CohortResultService(
             patient_ids=patient_ids,
         )
 
-        if createDataFrameResponse.dataframe_idº in (None, -1):
+        if createDataFrameResponse.dataframe_id in (None, -1):
             raise RuntimeError("Failed to create cohort in Vantage6")
 
         cohort.dataframe_vantage_id = createDataFrameResponse.dataframe_id

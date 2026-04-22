@@ -511,9 +511,8 @@ class Vantage6Service(
             dataframe_id = response_data["id"]
 
             logger.info(
-                "[V6] Extracted dataframe_id IDs: %s",
+                "[V6] Extracted dataframe_id IDs: %s task_id: %s",
                 dataframe_id,
-                " task_ud: %s",
                 task_id,
             )
 
@@ -1356,7 +1355,9 @@ class Vantage6Service(
         if not workspace:
             raise ValueError(f"Workspace with id {coxph_in.workspace_id} not found")
 
-        analysis = db.query(Analysis).filter(Analysis.id == coxph_in.analysis_id).first()
+        analysis = (
+            db.query(Analysis).filter(Analysis.id == coxph_in.analysis_id).first()
+        )
         if not analysis:
             raise ValueError(f"Analysis with id {coxph_in.analysis_id} not found")
 
