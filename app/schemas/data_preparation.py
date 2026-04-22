@@ -106,3 +106,12 @@ class MergeVariablesRequest(BaseModel):
 class V6CreateDataFrame(BaseModel):
     task_id: int
     dataframe_id: int
+
+
+class CoxPHRequest(BaseModel):
+    workspace_id: int
+    analysis_id: int
+    cohorts_ids: List[int]
+    time_col: str
+    outcome_col: str
+    expl_vars: List[str]

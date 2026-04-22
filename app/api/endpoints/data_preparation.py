@@ -135,6 +135,39 @@ def create_data_preparation_crosstab(
 
 
 @router.post(
+    "/create_coxph",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_coxph(
+    *,
+    db: Session = Depends(get_db),
+    coxph_data: schemas.CoxPHRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Create a Cox Proportional Hazards (CoxPH) analytics task in Vantage6.
+    Returns task_id and job_id for polling.
+    """
+    try:
+        result = service.create_coxph(
+            db=db,
+            access_token=TOKEN_V6,
+            coxph_in=coxph_data,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="No cohorts found for the provided IDs"
+            )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
     "/create_glm",
     response_model=schemas.V6TaskResult,
     status_code=status.HTTP_201_CREATED,

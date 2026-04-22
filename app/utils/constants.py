@@ -71,6 +71,7 @@ class ALGORITHMS(str, Enum):
     TABLE1 = "table1"
     BASIC_ARITHMETIC = "basic_arithmetic"
     SUMMARY = "summary"
+    COXPH = "cox-ph"
 
 
 class ORGANIZATION_TYPES(int, Enum):

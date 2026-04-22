@@ -40,6 +40,7 @@ from app.schemas.data_preparation import (
     OneHotEncodingRequest,
     GLMRequest,
     MergeVariablesRequest,
+    CoxPHRequest,
 )
 from app.schemas.metadata_search import MetadataSearch
 from app.schemas.algorithms import (
@@ -96,6 +97,7 @@ __all__ = [
     "OneHotEncodingRequest",
     "GLMRequest",
     "MergeVariablesRequest",
+    "CoxPHRequest",
     "Algorithm",
     "AlgorithmBase",
     "AlgorithmCreate",
