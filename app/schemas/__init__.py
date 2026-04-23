@@ -41,6 +41,7 @@ from app.schemas.data_preparation import (
     GLMRequest,
     MergeVariablesRequest,
     CoxPHRequest,
+    ToBooleanRequest,
 )
 from app.schemas.metadata_search import MetadataSearch
 from app.schemas.algorithms import (
@@ -98,6 +99,7 @@ __all__ = [
     "GLMRequest",
     "MergeVariablesRequest",
     "CoxPHRequest",
+    "ToBooleanRequest",
     "Algorithm",
     "AlgorithmBase",
     "AlgorithmCreate",

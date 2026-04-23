@@ -36,6 +36,7 @@ from app.schemas.data_preparation import (
     GLMRequest,
     MergeVariablesRequest,
     CoxPHRequest,
+    ToBooleanRequest,
     V6TaskResult,
     V6CreateDataFrame,
     V6RunResult,
@@ -1183,11 +1184,18 @@ class Vantage6Service(
                 "[V6] Full response data: %s", json.dumps(response_json, indent=2)
             )
 
-            result_global = [
-                json.loads(base64.b64decode(item["result"]).decode("UTF-8"))
-                for item in response_json["data"]
-            ]
-            return V6DecodedResult(task_id=task_id, result=result_global[0])
+            data = response_json.get("data", [])
+            if not data:
+                raise ValueError(f"No result data for task_id={task_id}")
+
+            item = data[0]
+            raw_result = item.get("result")
+            if raw_result:
+                decoded = json.loads(base64.b64decode(raw_result).decode("UTF-8"))
+                return V6DecodedResult(task_id=task_id, result=decoded)
+
+            log = item.get("log") or "No result and no log available"
+            return V6DecodedResult(task_id=task_id, result={"error": log})
 
         except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
             logger.exception(
@@ -1233,18 +1241,7 @@ class Vantage6Service(
             if not isinstance(tasks, list):
                 raise RuntimeError("Unexpected response format from Vantage6")
 
-            for task in tasks:
-                if task.get("method") == "summary_per_data_station":
-                    subtask_id = task.get("id")
-                    logger.info(
-                        "[V6] Found subtask with method='summary_per_data_station', id=%s",
-                        subtask_id,
-                    )
-                    return subtask_id
-
-            raise RuntimeError(
-                f"No subtask with method='summary_per_data_station' found for parent task {task_id}"
-            )
+            return [{"id": t.get("id"), "method": t.get("method"), "status": t.get("status")} for t in tasks]
 
         except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
             logger.exception(
@@ -1340,7 +1337,7 @@ class Vantage6Service(
         """
         Executes a Cox Proportional Hazards (CoxPH) analytics task in Vantage6.
         """
-        IMAGE = "harbor2.vantage6.ai/idea4rc/analytics:latest"
+        IMAGE = "ghcr.io/iknl/analytics:latest"
         METHOD = "coxph_central"
 
         logger.info("[V6] create_coxph START for coxph_in=%s", coxph_in)
@@ -1388,7 +1385,7 @@ class Vantage6Service(
         }
 
         arguments = {
-            "organization_ids": org_ids,
+            "organizations_to_include": [org_ids[0]],
             "time_col": coxph_in.time_col,
             "outcome_col": coxph_in.outcome_col,
             "expl_vars": coxph_in.expl_vars,
@@ -2033,6 +2030,104 @@ class Vantage6Service(
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.post(
                     f"{self.base_url}/session/dataframe/{timedelta_in.dataframe_id}/preprocess",
+                    json=payload,
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] POST to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            logger.debug(
+                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
+            )
+
+            task_id = response_data["last_session_task"]["id"]
+            job_id = response_data["last_session_task"]["job_id"]
+
+            return V6TaskResult(task_id=task_id, job_id=job_id)
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 preprocessing failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return V6TaskResult(task_id=-1, job_id=-1)
+
+    def create_to_boolean(
+        self,
+        *,
+        access_token: str,
+        to_boolean_in: ToBooleanRequest,
+    ) -> V6TaskResult:
+        """
+        Executes a to_boolean preprocessing task in Vantage6.
+        Converts a categorical column to boolean based on the provided true_values.
+        """
+        IMAGE = "ghcr.io/iknl/preprocessing:latest"
+        METHOD = "to_boolean"
+
+        logger.info(
+            "[V6] create_to_boolean START for dataframe_id=%s",
+            to_boolean_in.dataframe_id,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation URL not configured")
+            return
+
+        org_ids = self._get_org_ids(
+            access_token=access_token,
+            collaboration_id=COLLABORATION_ID,
+        )
+
+        logger.info("[V6] Organization IDs fetched: %s", org_ids)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        arguments = {
+            "column": to_boolean_in.column,
+            "output_column": to_boolean_in.output_column,
+            "true_values": to_boolean_in.true_values,
+        }
+
+        payload = {
+            "dataframe_id": to_boolean_in.dataframe_id,
+            "task": {
+                "image": IMAGE,
+                "method": METHOD,
+                "organizations": [
+                    {
+                        "id": org_id,
+                        "arguments": base64.b64encode(
+                            json.dumps(arguments).encode("UTF-8")
+                        ).decode("UTF-8"),
+                    }
+                    for org_id in org_ids
+                ],
+            },
+        }
+
+        logger.info(
+            "[V6] Payload to send to Vantage6 for to_boolean:\n%s",
+            json.dumps(payload, indent=2),
+        )
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}/session/dataframe/{to_boolean_in.dataframe_id}/preprocess",
                     json=payload,
                     headers=headers,
                 )

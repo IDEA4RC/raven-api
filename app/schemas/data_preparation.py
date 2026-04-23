@@ -115,3 +115,10 @@ class CoxPHRequest(BaseModel):
     time_col: str
     outcome_col: str
     expl_vars: List[str]
+
+
+class ToBooleanRequest(BaseModel):
+    dataframe_id: int
+    column: str
+    output_column: str
+    true_values: List[str]
