@@ -212,6 +212,14 @@ class CohortService(BaseService[Cohort, CohortCreate, CohortUpdate]):
         Get all cohorts for a specific workspace.
         """
         return db.query(Cohort).filter(Cohort.analysis_id == analysis_id).all()
+    
+    def get_cohorts_by_dataframe(self, db: Session, dataframe_id: int) -> List[Cohort]:
+        """
+        Get all cohorts for a specific dataframe_id.
+        """
+        return (
+            db.query(Cohort).filter(Cohort.dataframe_vantage_id == dataframe_id).all()
+        )
 
     def create_with_history_v2(
         self,

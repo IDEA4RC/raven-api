@@ -32,6 +32,22 @@ async def data_preparation_check():
     }
 
 
+@router.get("/available_organizations", status_code=status.HTTP_200_OK)
+def get_available_organizations(
+    *,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Returns the list of organizations with an online Vantage6 node that are
+    available for task submission (whitelist + online check).
+    """
+    try:
+        result = service.get_available_organizations(access_token=TOKEN_V6)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
 @router.get("/get_variables_dataframe/{dataframe_id}", status_code=status.HTTP_200_OK)
 def get_variables_dataframe(
     *,
@@ -367,6 +383,7 @@ def get_subtasks(
 )
 def create_basic_arithmetic(
     *,
+    db: Session = Depends(get_db),
     basic_arithmetic_data: schemas.BasicArithmeticRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
@@ -381,6 +398,7 @@ def create_basic_arithmetic(
         access_token = current_user.access_token
 
         result = service.create_basic_arithmetic(
+            db,
             access_token=TOKEN_V6,
             basic_arithmetic_in=basic_arithmetic_data,
         )
@@ -403,6 +421,7 @@ def create_basic_arithmetic(
 )
 def create_merge_categories(
     *,
+    db: Session = Depends(get_db),
     merge_categories_data: schemas.MergeCategoriesRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
@@ -417,6 +436,7 @@ def create_merge_categories(
         access_token = current_user.access_token
 
         result = service.create_merge_categories(
+            db,
             access_token=TOKEN_V6,
             merge_categories_in=merge_categories_data,
         )
@@ -439,6 +459,7 @@ def create_merge_categories(
 )
 def create_one_hot_encoding(
     *,
+    db: Session = Depends(get_db),
     one_hot_encoding_data: schemas.OneHotEncodingRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
@@ -453,6 +474,7 @@ def create_one_hot_encoding(
         access_token = current_user.access_token
 
         result = service.create_one_hot_encoding(
+            db,
             access_token=TOKEN_V6,
             one_hot_encoding_in=one_hot_encoding_data,
         )
@@ -475,6 +497,7 @@ def create_one_hot_encoding(
 )
 def create_merge_variables(
     *,
+    db: Session = Depends(get_db),
     merge_variables_data: schemas.MergeVariablesRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
@@ -485,6 +508,7 @@ def create_merge_variables(
     """
     try:
         result = service.create_merge_variables(
+            db,
             access_token=TOKEN_V6,
             merge_variables_in=merge_variables_data,
         )
@@ -505,6 +529,7 @@ def create_merge_variables(
 )
 def create_to_boolean(
     *,
+    db: Session = Depends(get_db),
     to_boolean_data: schemas.ToBooleanRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
@@ -515,6 +540,7 @@ def create_to_boolean(
     """
     try:
         result = service.create_to_boolean(
+            db,
             access_token=TOKEN_V6,
             to_boolean_in=to_boolean_data,
         )
@@ -537,6 +563,7 @@ def create_to_boolean(
 )
 def create_timedelta(
     *,
+    db: Session = Depends(get_db),
     timedelta_data: schemas.TimedeltaRequest,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
@@ -551,6 +578,7 @@ def create_timedelta(
         access_token = current_user.access_token
 
         result = service.create_timedelta(
+            db,
             access_token=TOKEN_V6,
             timedelta_in=timedelta_data,
         )
@@ -584,11 +612,6 @@ def get_subtask_results(
         status_task = service.get_subtask_results(
             access_token=TOKEN_V6, subtask_id=task_id
         )
-
-        if not status_task:
-            raise HTTPException(
-                status_code=404, detail="No subtask result for the task id"
-            )
 
         return status_task
 
