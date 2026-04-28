@@ -809,6 +809,7 @@ class Vantage6Service(
         session_id: int,
         features: str,
         patient_ids: List[Any] = None,
+        study_id=None,
     ) -> V6CreateDataFrame:
         """
         Crea una nuevo cohort en Vantage 6
@@ -826,6 +827,8 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
+            study_id=study_id,
+            session_id=session_id if study_id is None else None,
         )
         logger.info("[V6] Organization IDs fetched: %s", org_ids)
 

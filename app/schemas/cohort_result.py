@@ -1,76 +1,26 @@
-from typing import Any, Optional
-import json
-import re
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict
 
 
-class CohortResultBase(BaseModel):
-    """Base schema for cohort results."""
+class ExecutionEntry(BaseModel):
+    execution_date: str
+    patient_ids: List[int]
 
+
+class CohortResultCreate(BaseModel):
     cohort_id: int
-    data_id: list[int]
-
-    @field_validator("data_id", mode="before")
-    @classmethod
-    def normalize_data_id(cls, value: Any) -> list[int]:
-        def flatten(v: Any) -> list[int]:
-            if v is None:
-                return []
-
-            if isinstance(v, int):
-                return [v]
-
-            if isinstance(v, (list, tuple, set)):
-                result: list[int] = []
-                for item in v:
-                    result.extend(flatten(item))
-                return result
-
-            if isinstance(v, str):
-                raw = v.strip()
-                if not raw:
-                    return []
-
-                if (raw.startswith("[") and raw.endswith("]")) or (
-                    raw.startswith("{") and raw.endswith("}")
-                ):
-                    try:
-                        decoded = json.loads(raw)
-                        return flatten(decoded)
-                    except json.JSONDecodeError:
-                        pass
-
-                numbers = re.findall(r"\d+", raw)
-                return [int(n) for n in numbers]
-
-            return flatten(str(v))
-
-        normalized = flatten(value)
-        if not normalized:
-            raise ValueError("data_id must contain at least one integer value")
-
-        # Preserve order, remove duplicates.
-        return list(dict.fromkeys(normalized))
-
-
-class CohortResultCreate(CohortResultBase):
-    """Schema for creating a cohort result."""
-
-    cohort_id: int
-    data_id: list[int]
+    # {"<coe_token>": [{"execution_date": "...", "patient_ids": [...]}]}
+    data_id: Dict[str, List[ExecutionEntry]]
 
 
 class CohortResultUpdate(BaseModel):
-    """Schema for updating a cohort result."""
-
-    data_id: Optional[list[int]] = None
+    data_id: Optional[Any] = None
 
 
-class CohortResult(CohortResultBase):
-    """Schema for reading a cohort result."""
-
+class CohortResult(BaseModel):
+    id: int
     cohort_id: int
-    data_id: list[int]
+    data_id: Any
 
     model_config = ConfigDict(from_attributes=True)

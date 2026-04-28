@@ -2,21 +2,20 @@
 Service for cohort result operations
 """
 
-from typing import List, Optional
+from typing import Any, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 import logging
-import json
-import re
 
 from app.models.cohort_result import CohortResult
 from app.models.cohort import Cohort
 from app.models.analysis import Analysis
 from app.models.metadata_search import MetadataSearch
+from app.models.workspace import Workspace
 from app.schemas.cohort_result import CohortResultCreate, CohortResultUpdate
 from app.services.base import BaseService
 from app.services.vantage_6 import vantage6_service
-from app.utils.constants import CohortStatus, typeOfDiseases
+from app.utils.constants import CohortStatus, typeOfDiseases, COE_TOKEN_MAP
 
 
 logger = logging.getLogger(__name__)
@@ -28,66 +27,11 @@ class CohortResultService(
     def __init__(self):
         super().__init__(CohortResult)
 
-    def _normalize_patient_ids(self, value: object) -> List[str]:
-        """Normalize patient IDs coming from DB rows or serialized JSON-like payloads."""
-        if value is None:
-            return []
-
-        if isinstance(value, list):
-            patient_ids: List[str] = []
-            for item in value:
-                patient_ids.extend(self._normalize_patient_ids(item))
-            return patient_ids
-
-        if isinstance(value, str):
-            raw_value = value.strip()
-            if not raw_value:
-                return []
-
-            if raw_value.startswith("[") and raw_value.endswith("]"):
-                try:
-                    decoded = json.loads(raw_value)
-                    return self._normalize_patient_ids(decoded)
-                except json.JSONDecodeError:
-                    pass
-
-            normalized = raw_value.strip('"').strip("'")
-            return [normalized] if normalized else []
-
-        normalized = str(value).strip().strip('"').strip("'")
-        return [normalized] if normalized else []
-
-    def _normalize_data_ids_to_ints(self, value: object) -> List[int]:
-        """Normalize incoming data_id payloads into a flat list of integers."""
-        if value is None:
-            return []
-
-        if isinstance(value, int):
-            return [value]
-
-        if isinstance(value, (list, tuple, set)):
-            numbers: List[int] = []
-            for item in value:
-                numbers.extend(self._normalize_data_ids_to_ints(item))
-            return numbers
-
-        if isinstance(value, str):
-            raw_value = value.strip()
-            if not raw_value:
-                return []
-
-            if (raw_value.startswith("[") and raw_value.endswith("]")) or (
-                raw_value.startswith("{") and raw_value.endswith("}")
-            ):
-                try:
-                    decoded = json.loads(raw_value)
-                    return self._normalize_data_ids_to_ints(decoded)
-                except json.JSONDecodeError:
-                    pass
-
-            return [int(n) for n in re.findall(r"\d+", raw_value)]
-
-        return self._normalize_data_ids_to_ints(str(value))
+    def _collect_patient_ids_from_jsonb(self, executions: list) -> List[int]:
+        ids: List[int] = []
+        for entry in (executions or []):
+            ids.extend(entry.get("patient_ids", []))
+        return list(dict.fromkeys(ids))
 
     def _collect_patient_ids_for_cohort(
         self, db: Session, *, cohort_id: int
@@ -95,12 +39,9 @@ class CohortResultService(
         cohort_result = (
             db.query(CohortResult).filter(CohortResult.cohort_id == cohort_id).first()
         )
-
         if not cohort_result or not cohort_result.data_id:
             return []
-        patient_list = self._normalize_data_ids_to_ints(cohort_result.data_id)
-
-        return list(dict.fromkeys(patient_list))
+        return self._collect_patient_ids_from_jsonb(cohort_result.data_id)
 
     def _update_cohort_execution_and_v6(
         self,
@@ -109,7 +50,6 @@ class CohortResultService(
         cohort: Cohort,
         access_token: str,
     ) -> None:
-        # Persist EXECUTED status as soon as cohort results have been stored.
         cohort.status = CohortStatus.EXECUTED.value
         db.add(cohort)
         db.commit()
@@ -157,11 +97,15 @@ class CohortResultService(
             analysis.session_id_vantage,
         )
 
+        workspace = db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        study_id = workspace.v6_study_id if workspace else None
+
         createDataFrameResponse = vantage6_service.create_new_cohort(
             access_token=access_token,
             session_id=analysis.session_id_vantage,
             features=features,
             patient_ids=patient_ids,
+            study_id=study_id,
         )
 
         if createDataFrameResponse.dataframe_id in (None, -1):
@@ -175,11 +119,8 @@ class CohortResultService(
         db.refresh(cohort)
 
     def get_by_cohort_and_data_id(
-        self, db: Session, *, cohort_id: int, data_id: List[int]
+        self, db: Session, *, cohort_id: int, data_id: list
     ) -> Optional[CohortResult]:
-        """
-        Get a cohort result by cohort_id and data_id.
-        """
         return (
             db.query(self.model)
             .filter(
@@ -188,18 +129,12 @@ class CohortResultService(
             .first()
         )
 
-    def get_by_cohort_last(self, db: Session, *, cohort_id: int) -> CohortResult:
-        """
-        Get the last cohort result for a specific cohort.
-        """
+    def get_by_cohort_last(self, db: Session, *, cohort_id: int) -> Optional[CohortResult]:
         return db.query(self.model).filter(self.model.cohort_id == cohort_id).first()
 
     def get_by_cohort(
         self, db: Session, *, cohort_id: int, skip: int = 0, limit: int = 100
     ) -> List[CohortResult]:
-        """
-        Get all cohort results for a specific cohort.
-        """
         return (
             db.query(self.model)
             .filter(self.model.cohort_id == cohort_id)
@@ -211,42 +146,50 @@ class CohortResultService(
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
     ) -> CohortResult:
-        """
-        Create a new cohort result.
-        """
-        # Verify that the cohort exists
         cohort = db.query(Cohort).filter(Cohort.id == obj_in.cohort_id).first()
         if not cohort:
             raise ValueError(f"Cohort with ID {obj_in.cohort_id} not found")
 
-        # Upsert: overwrite existing data_id if a record already exists for this cohort.
+        if len(obj_in.data_id) != 1:
+            raise ValueError("data_id must contain exactly one CoE token key")
+
+        token, entries = next(iter(obj_in.data_id.items()))
+        center = COE_TOKEN_MAP.get(token)
+        if center is None:
+            raise ValueError(f"Unknown CoE token: {token}")
+
+        new_executions = [
+            {
+                "token": token,
+                "center": center,
+                "execution_date": e.execution_date,
+                "patient_ids": e.patient_ids,
+            }
+            for e in entries
+        ]
+
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
-
-        normalized_data_ids = list(
-            dict.fromkeys(self._normalize_data_ids_to_ints(obj_in.data_id))
-        )
-        if not normalized_data_ids:
-            raise ValueError("data_id must contain at least one integer value")
-
         if existing:
-            existing.data_id = normalized_data_ids
+            current = existing.data_id or []
+            existing.data_id = current + new_executions
             db.add(existing)
             db.commit()
             db.refresh(existing)
             db_obj = existing
         else:
-            db_obj = CohortResult(
-                cohort_id=obj_in.cohort_id, data_id=normalized_data_ids
-            )
+            db_obj = CohortResult(cohort_id=obj_in.cohort_id, data_id=new_executions)
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
 
         logger.info(
-            "Cohort result created/updated with ID %s for cohort_id=%s ",
-            db_obj.id,
+            "Cohort result appended for cohort_id=%s center=%s executions=%d total_stored=%d",
             obj_in.cohort_id,
+            center,
+            len(new_executions),
+            len(db_obj.data_id),
         )
+
         self._update_cohort_execution_and_v6(
             db,
             cohort=cohort,
@@ -260,12 +203,9 @@ class CohortResultService(
         db: Session,
         *,
         cohort_id: int,
-        data_id: List[int],
+        data_id: list,
         obj_in: CohortResultUpdate,
     ) -> CohortResult:
-        """
-        Update a cohort result by cohort_id and data_id.
-        """
         db_obj = self.get_by_cohort_and_data_id(
             db, cohort_id=cohort_id, data_id=data_id
         )
@@ -275,15 +215,6 @@ class CohortResultService(
             )
 
         update_data = obj_in.model_dump(exclude_unset=True)
-
-        if "data_id" in update_data and update_data["data_id"] is not None:
-            normalized_data_ids = list(
-                dict.fromkeys(self._normalize_data_ids_to_ints(update_data["data_id"]))
-            )
-            if not normalized_data_ids:
-                raise ValueError("data_id must contain at least one integer value")
-            update_data["data_id"] = normalized_data_ids
-
         for field, value in update_data.items():
             setattr(db_obj, field, value)
 
@@ -293,11 +224,8 @@ class CohortResultService(
         return db_obj
 
     def delete_cohort_result(
-        self, db: Session, *, cohort_id: int, data_id: List[int]
+        self, db: Session, *, cohort_id: int, data_id: list
     ) -> bool:
-        """
-        Delete a cohort result by cohort_id and data_id.
-        """
         db_obj = self.get_by_cohort_and_data_id(
             db, cohort_id=cohort_id, data_id=data_id
         )
@@ -311,11 +239,6 @@ class CohortResultService(
         return True
 
     def delete_all_for_cohort(self, db: Session, *, cohort_id: int) -> int:
-        """
-        Delete all cohort results for a specific cohort.
-        Returns the number of deleted records.
-        """
-        # Verify that the cohort exists
         cohort = db.query(Cohort).filter(Cohort.id == cohort_id).first()
         if not cohort:
             raise ValueError(f"Cohort with ID {cohort_id} not found")
@@ -328,22 +251,13 @@ class CohortResultService(
 
     def get_data_ids_for_cohort(
         self, db: Session, *, cohort_id: int
-    ) -> List[List[int]]:
-        """
-        Get all data_ids for a specific cohort.
-        """
+    ) -> List[Any]:
         results = (
             db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
         )
-        return [
-            list(dict.fromkeys(self._normalize_data_ids_to_ints(result[0])))
-            for result in results
-        ]
+        return [result[0] for result in results]
 
     def count_results_for_cohort(self, db: Session, *, cohort_id: int) -> int:
-        """
-        Count the number of results for a specific cohort.
-        """
         return db.query(self.model).filter(self.model.cohort_id == cohort_id).count()
 
     def bulk_create_for_cohort(
@@ -351,47 +265,12 @@ class CohortResultService(
         db: Session,
         *,
         cohort_id: int,
-        data_ids: List[List[int]],
+        data_ids: list,
         access_token: str,
     ) -> List[CohortResult]:
-        """
-        Create multiple cohort results for a cohort in a single transaction.
-        """
-        # Verify that the cohort exists
-        cohort = db.query(Cohort).filter(Cohort.id == cohort_id).first()
-        if not cohort:
-            raise ValueError(f"Cohort with ID {cohort_id} not found")
-
-        # Create all the objects
-        db_objs = []
-        for data_id in data_ids:
-            normalized_data_ids = list(
-                dict.fromkeys(self._normalize_data_ids_to_ints(data_id))
-            )
-            if not normalized_data_ids:
-                continue
-
-            # Check if this combination already exists
-            existing = self.get_by_cohort_and_data_id(
-                db, cohort_id=cohort_id, data_id=normalized_data_ids
-            )
-            if not existing:
-                db_obj = CohortResult(cohort_id=cohort_id, data_id=normalized_data_ids)
-                db_objs.append(db_obj)
-
-        if db_objs:
-            db.add_all(db_objs)
-            db.commit()
-            for db_obj in db_objs:
-                db.refresh(db_obj)
-
-            self._update_cohort_execution_and_v6(
-                db,
-                cohort=cohort,
-                access_token=access_token,
-            )
-
-        return db_objs
+        raise NotImplementedError(
+            "bulk_create_for_cohort is not supported with the new CoE token format"
+        )
 
 
 # Create service instance

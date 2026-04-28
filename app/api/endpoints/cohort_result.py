@@ -66,7 +66,7 @@ def get_cohort_results_by_cohort(
     return cohort_results
 
 
-@router.get("/cohort/{cohort_id}/data-ids", response_model=List[List[str]])
+@router.get("/cohort/{cohort_id}/data-ids", response_model=List[Any])
 def get_data_ids_for_cohort(
     *,
     db: Session = Depends(get_db),

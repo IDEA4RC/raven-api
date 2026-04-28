@@ -1,5 +1,5 @@
 """
-Constantes y enumeraciones para la aplicación
+Constants and enumerations for the application
 """
 
 from enum import Enum
@@ -50,6 +50,34 @@ API_BASE = "https://vantage6-core.orchestrator.idea.lst.tfo.upm.es/server"
 COLLABORATION_ID = 3
 
 ORGANIZATION_IDS = {1, 4, 5, 9}
+
+COE_TOKEN_MAP: dict[str, str] = {
+    "X7K2P9QR": "INT",
+    "M4NZ8WVT": "UDEUSTO",
+    "B6JY3FHL": "MME",
+    "Q1RT5DCG": "UPM",
+    "W9KM2XPN": "HL7 Europe",
+    "H3VB7LZQ": "ECCP",
+    "F8TG4YNK": "ENG",
+    "R2WX6JPM": "CERTH",
+    "L5QN9HCB": "UU",
+    "T7PK1ZVF": "DIGICOR",
+    "N4XH8GYW": "FBK",
+    "C9MZ3RBJ": "IKNL",
+    "J6LV5TQP": "CLB",
+    "G1BK7WNH": "APHP",
+    "Y8FX2MCR": "IIS-FJD",
+    "P3ZT9QKL": "VGR",
+    "V7NW4HBG": "MSCI",
+    "K2JM6YXF": "MUH",
+    "D5RC1PLT": "OUS",
+    "Z9BG8WNQ": "MMCI",
+    "S4KP7VHM": "CLN",
+    "E1XN3ZJY": "FPNS",
+    "U6MW9FBR": "TNO",
+    "A8TZ5QKG": "INF",
+    "I3HY7LVN": "UKE",
+}
 
 
 class typeOfDiseases(Enum):
