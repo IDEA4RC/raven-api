@@ -113,7 +113,7 @@ class Vantage6Service(
             )
             response.raise_for_status()
             data = response.json()
-            logger.debug("[V6] Response from Vantage6: %s", json.dumps(data, indent=2))
+            
 
             v6_study_id = (
                 str(data.get("id"))
@@ -178,7 +178,7 @@ class Vantage6Service(
             "Content-Type": "application/json",
         }
 
-        logger.debug("[V6] Payload to Vantage6: %s", json.dumps(payload, indent=2))
+       
 
         try:
             with httpx.Client(timeout=self.timeout) as client:
@@ -194,7 +194,7 @@ class Vantage6Service(
             response.raise_for_status()
 
             data = response.json()
-            logger.debug("[V6] Response from Vantage6: %s", json.dumps(data, indent=2))
+            
             logger.info(
                 "Workspace %s registered in Vantage6 successfully",
                 workspace.id,
@@ -378,7 +378,7 @@ class Vantage6Service(
     #         response.raise_for_status()
 
     #         response_data = response.json()
-    #         logger.debug("[V6] Full response data: %s", json.dumps(response_data, indent=2))
+    #        
 
     #         data_list = response_data.get("data", [])
     #         ORGANIZATION_IDS = [org["id"] for org in data_list]
@@ -779,9 +779,7 @@ class Vantage6Service(
             response.raise_for_status()
 
             response_data = response.json()
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
+            
             v6_sesssion_id = (
                 str(response_data.get("id"))
                 if isinstance(response_data, dict) and "id" in response_data
@@ -883,9 +881,7 @@ class Vantage6Service(
 
             response_data = response.json()
 
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
+            
 
             task_id = response_data["last_session_task"]["id"]
             dataframe_id = response_data["id"]
@@ -1060,9 +1056,7 @@ class Vantage6Service(
 
             response_data = response.json()
 
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
+            
 
             task_id = response_data["id"]
             job_id = response_data["job_id"]
@@ -1225,9 +1219,7 @@ class Vantage6Service(
 
             response_data = response.json()
 
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
+            
 
             task_id = response_data["id"]
             job_id = response_data["job_id"]
@@ -1380,9 +1372,7 @@ class Vantage6Service(
 
             response_data = response.json()
 
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
+            
 
             task_id = response_data["id"]
             job_id = response_data["job_id"]
@@ -1454,13 +1444,7 @@ class Vantage6Service(
 
             response_data = response.json()
 
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
-
             status_task = response_data["columns"]
-
-            logger.debug("[V6]status_task: %s", json.dumps(status_task, indent=2))
 
             return V6Variables(
                 variablesList=status_task,
@@ -1505,11 +1489,7 @@ class Vantage6Service(
             )
             response.raise_for_status()
 
-            response_data = response.json()
-
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_data, indent=2)
-            )
+            response_data = response.json()           
 
             status_task = response_data["data"][0]["status"]
 
@@ -1556,9 +1536,6 @@ class Vantage6Service(
             )
             response.raise_for_status()
             response_json = response.json()
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_json, indent=2)
-            )
 
             data = response_json.get("data", [])
             if not data:
@@ -1609,9 +1586,6 @@ class Vantage6Service(
             )
             response.raise_for_status()
             response_json = response.json()
-            logger.debug(
-                "[V6] Full response data: %s", json.dumps(response_json, indent=2)
-            )
 
             tasks = response_json.get("data", [])
             if not isinstance(tasks, list):
@@ -1658,12 +1632,6 @@ class Vantage6Service(
             response.raise_for_status()
 
             response_json = response.json()
-
-            logger.debug(
-                "[V6] Full result response: %s",
-                json.dumps(response_json, indent=2),
-            )
-
             results = response_json.get("data", [])
 
             if not isinstance(results, list):
@@ -1749,9 +1717,6 @@ class Vantage6Service(
             if cohort.dataframe_vantage_id is not None
         ]
 
-        logger.info("[V6] workspace from db =%s", workspace)
-        logger.info("[V6] analysis from db =%s", analysis)
-        logger.info("[V6] cohorts from db =%s", dataframe_ids)
 
         org_ids = self._get_org_ids(
             access_token=access_token,
