@@ -808,7 +808,7 @@ class Vantage6Service(
         access_token: str,
         session_id: int,
         features: str,
-        patient_ids: List[Any] = None,
+        patient_ids_by_org: dict = None,
         study_id=None,
     ) -> V6CreateDataFrame:
         """
@@ -837,12 +837,11 @@ class Vantage6Service(
             "Content-Type": "application/json",
         }
 
-        arguments = {
-            "patient_ids": patient_ids,
-            "features": features,
-        }
+        patient_ids_by_org = patient_ids_by_org or {}
 
-        logger.info("[V6] Arguments prepared create_new_cohort: %s", arguments)
+        # Only include orgs that are both in the study (org_ids) and have patient data
+        orgs_to_include = [oid for oid in org_ids if oid in patient_ids_by_org]
+        logger.info("[V6] Orgs with patient data to include: %s", orgs_to_include)
 
         payload = {
             "label": LABEL,
@@ -851,15 +850,15 @@ class Vantage6Service(
                 "image": IMAGE,
                 "organizations": [
                     {
-                        "id": id_,
+                        "id": org_id,
                         "arguments": base64.b64encode(
-                            json.dumps(arguments).encode("UTF-8")
+                            json.dumps({
+                                "patient_ids": patient_ids_by_org[org_id],
+                                "features": features,
+                            }).encode("UTF-8")
                         ).decode("UTF-8"),
                     }
-                    # We always create a cohort for all organizations in the study. Even though
-                    # in a later stage we might send computation tasks to a subset of the
-                    # organizations.
-                    for id_ in org_ids
+                    for org_id in orgs_to_include
                 ],
             },
         }

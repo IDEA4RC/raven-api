@@ -3,7 +3,7 @@
 # Script completo para Git Bash: limpia, build, push, despliega y port-forward
 set -e
 
-IMAGE_NAME="sgonzmart/raven-api-dev:1.0.7"
+IMAGE_NAME="sgonzmart/raven-api-dev:1.0.8"
 NAMESPACE="raven-api"
 DEPLOYMENT_NAME="raven-api"
 

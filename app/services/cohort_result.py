@@ -15,7 +15,7 @@ from app.models.workspace import Workspace
 from app.schemas.cohort_result import CohortResultCreate, CohortResultUpdate
 from app.services.base import BaseService
 from app.services.vantage_6 import vantage6_service
-from app.utils.constants import CohortStatus, typeOfDiseases, COE_TOKEN_MAP
+from app.utils.constants import CohortStatus, typeOfDiseases, COE_TOKEN_MAP, COE_TOKEN_ORG_MAP
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,31 @@ class CohortResultService(
         if not cohort_result or not cohort_result.data_id:
             return []
         return self._collect_patient_ids_from_jsonb(cohort_result.data_id)
+
+    def _collect_patient_ids_by_org(
+        self, db: Session, *, cohort_id: int
+    ) -> dict[int, List[int]]:
+        """Build {v6_org_id: [patient_ids]} from stored executions.
+        Only includes centers that have a V6 node in COE_TOKEN_ORG_MAP.
+        Multiple executions from the same center are merged and deduplicated.
+        """
+        cohort_result = (
+            db.query(CohortResult).filter(CohortResult.cohort_id == cohort_id).first()
+        )
+        if not cohort_result or not cohort_result.data_id:
+            return {}
+
+        org_patient_ids: dict[int, List[int]] = {}
+        for entry in cohort_result.data_id:
+            token = entry.get("token")
+            org_id = COE_TOKEN_ORG_MAP.get(token)
+            if org_id is None:
+                continue
+            existing = org_patient_ids.get(org_id, [])
+            all_ids = existing + entry.get("patient_ids", [])
+            org_patient_ids[org_id] = list(dict.fromkeys(all_ids))
+
+        return org_patient_ids
 
     def _update_cohort_execution_and_v6(
         self,
@@ -78,17 +103,16 @@ class CohortResultService(
         if features == "H&N":
             features = typeOfDiseases.HAndN.value
 
-        patient_ids = self._collect_patient_ids_for_cohort(db, cohort_id=cohort.id)
+        patient_ids_by_org = self._collect_patient_ids_by_org(db, cohort_id=cohort.id)
         logger.info(
-            "Collected %d patient IDs for cohort_id=%s patient list=%s",
-            len(patient_ids),
+            "Collected patient IDs by org for cohort_id=%s: %s",
             cohort.id,
-            patient_ids,
+            {org_id: len(ids) for org_id, ids in patient_ids_by_org.items()},
         )
 
-        if not patient_ids:
+        if not patient_ids_by_org:
             raise ValueError(
-                f"No patient IDs found in cohort results for cohort {cohort.id}"
+                f"No patient IDs with a V6 node found in cohort results for cohort {cohort.id}"
             )
 
         logger.info(
@@ -104,7 +128,7 @@ class CohortResultService(
             access_token=access_token,
             session_id=analysis.session_id_vantage,
             features=features,
-            patient_ids=patient_ids,
+            patient_ids_by_org=patient_ids_by_org,
             study_id=study_id,
         )
 
