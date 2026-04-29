@@ -86,13 +86,35 @@ async def root():
 
 # Configurar logging global
 logging.basicConfig(
-    level=logging.DEBUG, # DEBUG si quieres ver todo
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     stream=sys.stdout
 )
 
+# Suppress noisy third-party loggers
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+# Access log spam (health probes hit this every ~10s)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-# Reutilizar estos handlers para uvicorn (FastAPI)
+
+class _V6VerboseFilter(logging.Filter):
+    """Drop high-volume development-only log lines from the V6 service."""
+    _suppress = frozenset([
+        "[V6] Payload to send to Vantage6",
+        "[V6] workspace from db",
+        "[V6] analysis from db",
+        "[V6] cohorts from db",
+    ])
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not any(s in record.msg for s in self._suppress)
+
+
+logging.getLogger("app.services.vantage_6").addFilter(_V6VerboseFilter())
+
+# Reuse root handlers for uvicorn
 logging.getLogger("uvicorn").handlers = logging.getLogger().handlers
 logging.getLogger("uvicorn.error").handlers = logging.getLogger().handlers
 logging.getLogger("uvicorn.access").handlers = logging.getLogger().handlers
