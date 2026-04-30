@@ -13,6 +13,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.models.permit import Permit
 from app.services.permit import permit_service
+from app.utils.constants import PermitStatus
 
 router = APIRouter()
 
@@ -78,6 +79,11 @@ def update_permit(
     Can update any combination of: status, permit_name, expiration_date, user_team_ids, coes_granted.
     Note: user_team_ids will update the team_ids field. coes_granted can only be set when status is GRANTED.
     """
+    if not permit_service.get(db=db, id=permit_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Permit with ID {permit_id} not found"
+        )
     try:
         permit = permit_service.update_with_history(
             db=db, permit_id=permit_id, obj_in=permit_in, user_id=current_user.id
@@ -85,7 +91,7 @@ def update_permit(
         return permit
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
 
@@ -155,15 +161,13 @@ def update_permit_status(
     """
     Updates the status of a permit.
     """
-    if permit_update.status is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Status field is required"
-        )
-    
+    permitStatus = PermitStatus.GRANTED
+    if permit_update.status is not None:
+        permitStatus = permit_update.status
+
     try:
         permit = permit_service.update_permit_status(
-            db=db, permit_id=permit_id, status=permit_update.status, user_id=current_user.id
+            db=db, permit_id=permit_id, status=permitStatus, user_id=current_user.id
         )
         return permit
     except ValueError as e:
