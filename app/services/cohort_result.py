@@ -170,17 +170,31 @@ class CohortResultService(
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
     ) -> CohortResult:
+        logger.info("[CREATE_COHORT_RESULT] START cohort_id=%s", obj_in.cohort_id)
+        logger.info("[CREATE_COHORT_RESULT] Raw data_id keys: %s", list(obj_in.data_id.keys()))
+
         cohort = db.query(Cohort).filter(Cohort.id == obj_in.cohort_id).first()
         if not cohort:
+            logger.error("[CREATE_COHORT_RESULT] Cohort %s not found", obj_in.cohort_id)
             raise ValueError(f"Cohort with ID {obj_in.cohort_id} not found")
+        logger.info("[CREATE_COHORT_RESULT] Cohort found: id=%s status=%s workspace_id=%s", cohort.id, cohort.status, cohort.workspace_id)
 
         if len(obj_in.data_id) != 1:
+            logger.error("[CREATE_COHORT_RESULT] data_id has %d keys, expected 1: %s", len(obj_in.data_id), list(obj_in.data_id.keys()))
             raise ValueError("data_id must contain exactly one CoE token key")
 
         token, entries = next(iter(obj_in.data_id.items()))
+        logger.info("[CREATE_COHORT_RESULT] Token received: %s | entries count: %d", token, len(entries))
+
         center = COE_TOKEN_MAP.get(token)
         if center is None:
+            logger.error("[CREATE_COHORT_RESULT] Unknown CoE token: '%s' | Known tokens: %s", token, list(COE_TOKEN_MAP.keys()))
             raise ValueError(f"Unknown CoE token: {token}")
+        logger.info("[CREATE_COHORT_RESULT] Token '%s' mapped to center: %s", token, center)
+
+        for i, e in enumerate(entries):
+            logger.info("[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
+                i, e.execution_date, len(e.patient_ids), e.patient_ids[:3])
 
         new_executions = [
             {
@@ -195,24 +209,24 @@ class CohortResultService(
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
         if existing:
             current = existing.data_id or []
+            logger.info("[CREATE_COHORT_RESULT] Appending to existing record id=%s (current entries=%d)", existing.id, len(current))
             existing.data_id = current + new_executions
             db.add(existing)
             db.commit()
             db.refresh(existing)
             db_obj = existing
         else:
+            logger.info("[CREATE_COHORT_RESULT] Creating new CohortResult record")
             db_obj = CohortResult(cohort_id=obj_in.cohort_id, data_id=new_executions)
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
 
         logger.info(
-            "Cohort result appended for cohort_id=%s center=%s executions=%d total_stored=%d",
-            obj_in.cohort_id,
-            center,
-            len(new_executions),
-            len(db_obj.data_id),
+            "[CREATE_COHORT_RESULT] Saved OK cohort_id=%s center=%s executions=%d total_stored=%d",
+            obj_in.cohort_id, center, len(new_executions), len(db_obj.data_id),
         )
+        logger.info("[CREATE_COHORT_RESULT] Triggering V6 cohort creation...")
 
         self._update_cohort_execution_and_v6(
             db,
@@ -220,6 +234,7 @@ class CohortResultService(
             access_token=access_token,
         )
 
+        logger.info("[CREATE_COHORT_RESULT] END OK cohort_id=%s", obj_in.cohort_id)
         return db_obj
 
     def update_cohort_result(

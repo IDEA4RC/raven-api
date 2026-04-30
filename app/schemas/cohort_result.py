@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class ExecutionEntry(BaseModel):
     execution_date: str
-    patient_ids: List[int]
+    patient_ids: List[Any]
 
 
 class CohortResultCreate(BaseModel):

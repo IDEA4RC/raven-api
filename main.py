@@ -5,6 +5,8 @@ Main FastAPI application instance.
 import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
@@ -37,6 +39,16 @@ app = FastAPI(
 # Para volver a activar la autenticación, restaura los comentarios en:
 # - app/api/deps.py
 # - app/api/endpoints/auth.py
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logging.getLogger("app.validation").error(
+        "[422] Validation error on %s %s | body: %s | errors: %s",
+        request.method, request.url.path, body.decode("utf-8", errors="replace"), exc.errors()
+    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 # Configurar telemetría para OpenTelemetry
 if settings.ENABLE_TELEMETRY:
