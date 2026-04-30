@@ -96,9 +96,6 @@ def login(
                 any_user_type = db.query(UserType).first()
                 if any_user_type:
                     default_user_type_id = any_user_type.id
-                    logger.warning(
-                        f"Using fallback user type: {any_user_type.description} (ID: {any_user_type.id})"
-                    )
                 else:
                     logger.warning(
                         "No user types found in database, creating user without user_type_id"

@@ -37,12 +37,6 @@ def create_cohort(
     Creates a new cohort for a workspace.
     """
     try:
-
-        logger.info(
-            "[COHORT] Cohort post service with ID cohort_name=%s, analysis_id=%s",
-            cohort_in.cohort_name,
-            cohort_in.analysis_id,
-        )
         user = current_user.user
         # access_token = current_user.access_token
         cohort = cohort_service.create_with_history_v2(

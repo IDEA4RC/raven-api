@@ -4,6 +4,7 @@ Endpoints for analysis operations
 
 from typing import List, Any
 
+from app.utils.constants import TOKEN_V6
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import logging
@@ -104,6 +105,21 @@ def update_algorithm(
 ):
     try:
         algorithms = algorithm_service.update_algorithm(db, obj_in=request)
+        return algorithms
+    except Exception as e:
+        logger.exception("Error updating task status")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/algorithms_statistics/{task_id}")
+def get_algorithm_statistics(
+    task_id: int,
+    db: Session = Depends(get_db),
+) -> Any:
+    try:
+        algorithms = algorithm_service.get_algorithm_statistics(
+            access_token=TOKEN_V6, task_id=task_id
+        )
         return algorithms
     except Exception as e:
         logger.exception("Error updating task status")

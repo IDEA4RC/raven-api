@@ -3,10 +3,12 @@ Service for handling algorithms operations
 """
 
 from abc import abstractmethod
+from asyncio import tasks
 from datetime import datetime, timezone
 from typing import List, Optional
 import logging
 from urllib import response
+import json
 
 from app import db
 from app.models.algorithm import Algorithm
@@ -21,13 +23,25 @@ from app.services.base import BaseService
 from app.models.cohort import Cohort
 from app.services.cohort import CohortService
 from app.utils.constants import ALGORITHMS
+import httpx
 
 logger = logging.getLogger(__name__)
 
 cohort_service = CohortService(Cohort)
 
+from app.utils.constants import API_BASE, ALGORITHMS
+
 
 class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate]):
+
+    def __init__(
+        self,
+        *,
+        base_url: Optional[str] = None,
+        timeout: float = 10.0,
+    ) -> None:
+        self.base_url = base_url or API_BASE
+        self.timeout = timeout
 
     def create_algorithm(self, db: Session, *, obj_in: AlgorithmCreate) -> Algorithm:
         """Create algorithm and link cohorts."""
@@ -66,7 +80,7 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
     ) -> List[Algorithm]:
 
         logger.info(
-            "[ALGORITHMS] GET to get_algorithms_by_cohort_list with cohort_ids: %s",
+            "[ALGORITHMS] GET to get_algorithms_by_exact_cohort_list with cohort_ids: %s",
             cohort_ids,
         )
         # Subquery: contar cohort_ids por algoritmo
@@ -154,5 +168,51 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
 
         return algorithm
 
+    def get_algorithm_statistics(self, *, access_token: str, task_id: int) -> int:
+        """
+        Obtiene el las estadísticas de un algoritmo de ejecución en Vantage6.
+        """
 
-algorithm_service = AlgorithmService(Algorithm)
+        logger.info(
+            "[V6] get_algorithm_statistics START for parent_task_id=%s", task_id
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation  URL not configured")
+            return
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}/task?id={task_id}",
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] GET to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+            response_json = response.json()
+
+            tasks = response_json.get("data", [])
+            if not tasks:
+                raise RuntimeError(f"No task found for id={task_id}")
+
+            task_metadata = tasks[0]
+
+            return task_metadata
+
+        except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
+            logger.exception(
+                "[V6] Error getting subtask for task_id=%s",
+                task_id,
+            )
+            raise RuntimeError(f"Failed to retrieve subtask: {str(exc)}")
+
+
+algorithm_service = AlgorithmService()
