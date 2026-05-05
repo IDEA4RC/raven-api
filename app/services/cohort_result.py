@@ -2,20 +2,26 @@
 Service for cohort result operations
 """
 
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from datetime import datetime, timezone, timedelta
 import logging
 
 from app.models.cohort_result import CohortResult
 from app.models.cohort import Cohort
 from app.models.analysis import Analysis
+from app.models.algorithm import Algorithm
+from app.models.cohort_algorithm import CohortAlgorithm
 from app.models.metadata_search import MetadataSearch
+from app.models.permit import Permit
 from app.models.workspace import Workspace
 from app.schemas.cohort_result import CohortResultCreate, CohortResultUpdate
 from app.services.base import BaseService
 from app.services.vantage_6 import vantage6_service
-from app.utils.constants import CohortStatus, typeOfDiseases, COE_TOKEN_MAP, COE_TOKEN_ORG_MAP
+from app.utils.constants import CohortStatus, typeOfDiseases, COE_TOKEN_MAP, COE_TOKEN_ORG_MAP, PermitStatus
+
+COHORT_RESULT_WAIT_TIMEOUT = timedelta(minutes=1)
 
 
 logger = logging.getLogger(__name__)
@@ -26,6 +32,47 @@ class CohortResultService(
 ):
     def __init__(self):
         super().__init__(CohortResult)
+
+    def _get_expected_coes(self, db: Session, cohort: Cohort) -> Set[str]:
+        """Get COE center names expected from the granted permit for this workspace."""
+        permit = (
+            db.query(Permit)
+            .filter(
+                Permit.workspace_id == cohort.workspace_id,
+                Permit.status == PermitStatus.GRANTED,
+            )
+            .first()
+        )
+        if not permit or not permit.coes_granted:
+            return set()
+        return set(permit.coes_granted)
+
+    def _get_responded_coes(self, data_id: list) -> Set[str]:
+        """Get COE center names that have already sent results."""
+        return {entry["center"] for entry in (data_id or []) if entry.get("center")}
+
+    def _delete_all_analyses_for_cohort(self, db: Session, cohort_id: int) -> None:
+        """Delete all algorithms (all types) associated with this cohort."""
+        cohort_algorithm_rows = (
+            db.query(CohortAlgorithm)
+            .filter(CohortAlgorithm.cohort_id == cohort_id)
+            .all()
+        )
+        algorithm_ids = [row.algorithm_id for row in cohort_algorithm_rows]
+
+        db.query(CohortAlgorithm).filter(CohortAlgorithm.cohort_id == cohort_id).delete()
+
+        for alg_id in algorithm_ids:
+            still_linked = (
+                db.query(CohortAlgorithm)
+                .filter(CohortAlgorithm.algorithm_id == alg_id)
+                .count()
+            )
+            if still_linked == 0:
+                db.query(Algorithm).filter(Algorithm.id == alg_id).delete()
+
+        db.commit()
+        logger.info("[CREATE_COHORT_RESULT] Deleted all analyses for cohort_id=%s (count=%d)", cohort_id, len(algorithm_ids))
 
     def _collect_patient_ids_from_jsonb(self, executions: list) -> List[int]:
         ids: List[int] = []
@@ -167,11 +214,62 @@ class CohortResultService(
             .all()
         )
 
+    def _maybe_create_dataframe(
+        self,
+        db: Session,
+        *,
+        cohort: Cohort,
+        data_id: list,
+        access_token: str,
+    ) -> None:
+        """Decide whether to create/recreate the V6 dataframe based on COE responses and timeout."""
+        expected_coes = self._get_expected_coes(db, cohort)
+        responded_coes = self._get_responded_coes(data_id)
+        has_existing_dataframe = cohort.dataframe_vantage_id is not None
+
+        logger.info(
+            "[CREATE_COHORT_RESULT] COE status — expected: %s | responded: %s | existing dataframe: %s",
+            expected_coes, responded_coes, cohort.dataframe_vantage_id,
+        )
+
+        if has_existing_dataframe:
+            logger.info("[CREATE_COHORT_RESULT] New COE after existing dataframe — deleting all analyses and recreating")
+            self._delete_all_analyses_for_cohort(db, cohort.id)
+            self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
+            return
+
+        if expected_coes and responded_coes >= expected_coes:
+            logger.info("[CREATE_COHORT_RESULT] All expected COEs responded — creating dataframe")
+            self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
+            return
+
+        # Check timeout using received_at of first entry
+        received_at_values = [entry.get("received_at") for entry in data_id if entry.get("received_at")]
+        if received_at_values:
+            first_received = datetime.fromisoformat(min(received_at_values))
+            elapsed = datetime.now(timezone.utc) - first_received
+            if elapsed >= COHORT_RESULT_WAIT_TIMEOUT:
+                logger.info(
+                    "[CREATE_COHORT_RESULT] Timeout reached (%ds) — creating dataframe with %d/%d COEs: %s",
+                    elapsed.seconds, len(responded_coes), len(expected_coes), responded_coes,
+                )
+                self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
+                return
+
+        logger.info(
+            "[CREATE_COHORT_RESULT] Waiting for more COEs — %d/%d responded, timeout in %ds",
+            len(responded_coes),
+            len(expected_coes) if expected_coes else "?",
+            max(0, int(COHORT_RESULT_WAIT_TIMEOUT.total_seconds() - (
+                (datetime.now(timezone.utc) - datetime.fromisoformat(min(received_at_values))).total_seconds()
+                if received_at_values else 0
+            ))),
+        )
+
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
     ) -> CohortResult:
-        logger.info("[CREATE_COHORT_RESULT] START cohort_id=%s", obj_in.cohort_id)
-        logger.info("[CREATE_COHORT_RESULT] Raw data_id keys: %s", list(obj_in.data_id.keys()))
+        logger.info("[CREATE_COHORT_RESULT] START - full payload: %s", obj_in.model_dump())
 
         cohort = db.query(Cohort).filter(Cohort.id == obj_in.cohort_id).first()
         if not cohort:
@@ -196,12 +294,14 @@ class CohortResultService(
             logger.info("[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
                 i, e.execution_date, len(e.patient_ids), e.patient_ids[:3])
 
+        now_iso = datetime.now(timezone.utc).isoformat()
         new_executions = [
             {
                 "token": token,
                 "center": center,
                 "execution_date": e.execution_date,
                 "patient_ids": e.patient_ids,
+                "received_at": now_iso,
             }
             for e in entries
         ]
@@ -226,13 +326,7 @@ class CohortResultService(
             "[CREATE_COHORT_RESULT] Saved OK cohort_id=%s center=%s executions=%d total_stored=%d",
             obj_in.cohort_id, center, len(new_executions), len(db_obj.data_id),
         )
-        logger.info("[CREATE_COHORT_RESULT] Triggering V6 cohort creation...")
-
-        self._update_cohort_execution_and_v6(
-            db,
-            cohort=cohort,
-            access_token=access_token,
-        )
+        self._maybe_create_dataframe(db, cohort=cohort, data_id=db_obj.data_id, access_token=access_token)
 
         logger.info("[CREATE_COHORT_RESULT] END OK cohort_id=%s", obj_in.cohort_id)
         return db_obj
