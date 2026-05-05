@@ -48,8 +48,12 @@ class CohortResultService(
         return set(permit.coes_granted)
 
     def _get_responded_coes(self, data_id: list) -> Set[str]:
-        """Get COE center names that have already sent results."""
-        return {entry["center"] for entry in (data_id or []) if entry.get("center")}
+        """Get COE center names that have already sent results, derived from token."""
+        return {
+            COE_TOKEN_MAP[entry["token"]]
+            for entry in (data_id or [])
+            if entry.get("token") and entry["token"] in COE_TOKEN_MAP
+        }
 
     def _delete_all_analyses_for_cohort(self, db: Session, cohort_id: int) -> None:
         """Delete all algorithms (all types) associated with this cohort."""
@@ -249,9 +253,10 @@ class CohortResultService(
             first_received = datetime.fromisoformat(min(received_at_values))
             elapsed = datetime.now(timezone.utc) - first_received
             if elapsed >= COHORT_RESULT_WAIT_TIMEOUT:
+                missing = expected_coes - responded_coes
                 logger.info(
-                    "[CREATE_COHORT_RESULT] Timeout reached (%ds) — creating dataframe with %d/%d COEs: %s",
-                    elapsed.seconds, len(responded_coes), len(expected_coes), responded_coes,
+                    "[CREATE_COHORT_RESULT] Timeout reached (%ds) — creating dataframe with %d/%d expected COEs: %s (missing: %s)",
+                    elapsed.seconds, len(responded_coes & expected_coes), len(expected_coes), responded_coes & expected_coes, missing,
                 )
                 self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
                 return
@@ -288,7 +293,10 @@ class CohortResultService(
         if center is None:
             logger.error("[CREATE_COHORT_RESULT] Unknown CoE token: '%s' | Known tokens: %s", token, list(COE_TOKEN_MAP.keys()))
             raise ValueError(f"Unknown CoE token: {token}")
-        logger.info("[CREATE_COHORT_RESULT] Token '%s' mapped to center: %s", token, center)
+        expected_coes = self._get_expected_coes(db, cohort)
+        if expected_coes and center not in expected_coes:
+            logger.warning("[CREATE_COHORT_RESULT] Center '%s' not in coes_granted %s — rejecting", center, expected_coes)
+            raise ValueError(f"Center '{center}' is not authorized to send results for this cohort")
 
         for i, e in enumerate(entries):
             logger.info("[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
@@ -298,7 +306,6 @@ class CohortResultService(
         new_executions = [
             {
                 "token": token,
-                "center": center,
                 "execution_date": e.execution_date,
                 "patient_ids": e.patient_ids,
                 "received_at": now_iso,
@@ -323,8 +330,8 @@ class CohortResultService(
             db.refresh(db_obj)
 
         logger.info(
-            "[CREATE_COHORT_RESULT] Saved OK cohort_id=%s center=%s executions=%d total_stored=%d",
-            obj_in.cohort_id, center, len(new_executions), len(db_obj.data_id),
+            "[CREATE_COHORT_RESULT] Saved OK cohort_id=%s token=%s executions=%d total_stored=%d",
+            obj_in.cohort_id, token, len(new_executions), len(db_obj.data_id),
         )
         self._maybe_create_dataframe(db, cohort=cohort, data_id=db_obj.data_id, access_token=access_token)
 
