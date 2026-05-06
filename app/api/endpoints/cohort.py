@@ -4,10 +4,11 @@ Endpoints for cohort operations
 
 from typing import Any, List, Dict
 
+from app.services.vantage_6 import Vantage6Service
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import schemas
+from app import db, schemas
 from app.api.deps import get_current_user, get_db, get_current_user_with_token
 from app.models.user import User
 from app.api import CurrentUserContext
@@ -24,6 +25,7 @@ cohort_service = CohortService(Cohort)
 import logging
 
 logger = logging.getLogger(__name__)
+service_vantage = Vantage6Service()
 
 
 @router.post("/", response_model=schemas.Cohort, status_code=status.HTTP_201_CREATED)
@@ -218,5 +220,40 @@ def create_cohort(
             db=db, obj_in=cohort_in, user_id=user.id  # , access_token=TOKEN_V6
         )
         return cohort
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/dataframe_status/{cohort_id}",
+    status_code=status.HTTP_201_CREATED,
+)
+def get_dataframe_status(
+    *,
+    db: Session = Depends(get_db),
+    cohort_id: int,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Creates a new cohort for a workspace.
+    """
+
+    try:
+        user = current_user.user
+        # access_token = current_user.access_token
+        cohort = cohort_service.get_cohort_by_id(db=db, cohort_id=cohort_id)
+        if not cohort:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Cohort with ID {cohort_id} not found",
+            )
+        status_task = service_vantage.get_status_by_task_id(
+            access_token=TOKEN_V6, task_id=cohort.task_id_vantage
+        )
+
+        if not status_task:
+            raise HTTPException(status_code=404, detail="No status for the task id")
+
+        return status_task
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

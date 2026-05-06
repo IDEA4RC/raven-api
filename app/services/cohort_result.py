@@ -449,6 +449,10 @@ class CohortResultService(
             len(new_executions),
             len(db_obj.data_id),
         )
+
+        cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
+        db.add(cohort)
+        db.commit()
         self._maybe_create_dataframe(
             db, cohort=cohort, data_id=db_obj.data_id, access_token=access_token
         )
