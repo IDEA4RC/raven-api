@@ -16,6 +16,8 @@ class Algorithm(Base):
     method_name = Column(String, index=True)
     description = Column(Text)
     creation_date = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
     version_date = Column(DateTime(timezone=True))
     input = Column(String)  # variables
     output = Column(String)

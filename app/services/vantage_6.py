@@ -6,6 +6,9 @@ Handles study registration and related orchestration
 from asyncio import tasks
 import base64
 import json
+from app import db
+from app.models import cohort
+from app.models import algorithm
 import requests
 import time
 import logging
@@ -16,10 +19,11 @@ from app.models.workspace import Workspace
 from app.models.algorithm import Algorithm
 from app.models.cohort import Cohort
 from app.models.cohort_algorithm import CohortAlgorithm
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional, List
 import httpx
 import re
+import asyncio
 
 logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
@@ -86,8 +90,6 @@ class Vantage6Service(
         if not org_ids:
             raise RuntimeError("No organizations found for this collaboration")
 
-        logger.info("[V6] Organization IDs fetched: %s", org_ids)
-
         v6_name = self.generate_unique_workspace_name(workspace_name)
 
         payload = {
@@ -101,8 +103,6 @@ class Vantage6Service(
             "Content-Type": "application/json",
         }
 
-        logger.debug("[V6] Payload to Vantage6: %s", json.dumps(payload, indent=2))
-
         try:
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.post(
@@ -113,7 +113,6 @@ class Vantage6Service(
             )
             response.raise_for_status()
             data = response.json()
-            
 
             v6_study_id = (
                 str(data.get("id"))
@@ -121,7 +120,6 @@ class Vantage6Service(
                 else str(data)
             )
 
-            logger.debug("[V6] Response from Vantage6 v6_study_id: %s", v6_study_id)
             return str(data.get("id"))  # v6_study_id
         except httpx.HTTPStatusError as exc:
             raise RuntimeError(
@@ -158,8 +156,6 @@ class Vantage6Service(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
         )
-        logger.info("[V6] Organization IDs fetched: %s", org_ids)
-
         if not org_ids:
             logger.warning(
                 "Skipping Vantage6 registration for workspace %s: no organizations found",
@@ -178,8 +174,6 @@ class Vantage6Service(
             "Content-Type": "application/json",
         }
 
-       
-
         try:
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.post(
@@ -194,7 +188,7 @@ class Vantage6Service(
             response.raise_for_status()
 
             data = response.json()
-            
+
             logger.info(
                 "Workspace %s registered in Vantage6 successfully",
                 workspace.id,
@@ -378,7 +372,7 @@ class Vantage6Service(
     #         response.raise_for_status()
 
     #         response_data = response.json()
-    #        
+    #
 
     #         data_list = response_data.get("data", [])
     #         ORGANIZATION_IDS = [org["id"] for org in data_list]
@@ -418,18 +412,21 @@ class Vantage6Service(
                 response.raise_for_status()
                 data = response.json()
                 org_ids = {org["id"] for org in data.get("data", [])}
-                logger.info("[V6] Study %s organization IDs: %s", study_id, org_ids)
                 return org_ids
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] Study org lookup failed for study %s (%s): %s",
-                study_id, exc.response.status_code, exc.response.text,
+                study_id,
+                exc.response.status_code,
+                exc.response.text,
             )
         except httpx.RequestError as exc:
             logger.error("[V6] Vantage6 unreachable fetching study orgs: %s", str(exc))
         return set()
 
-    def _get_orgs_with_dataframe(self, *, access_token: str, dataframe_id: int) -> set[int]:
+    def _get_orgs_with_dataframe(
+        self, *, access_token: str, dataframe_id: int
+    ) -> set[int]:
         """Returns org IDs whose nodes have the given dataframe present."""
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -446,7 +443,11 @@ class Vantage6Service(
                 columns = df_data.get("columns", [])
                 if columns:
                     sample = columns[0]
-                    logger.info("[V6] Dataframe %s columns[0] structure: %s", dataframe_id, sample)
+                    logger.info(
+                        "[V6] Dataframe %s columns[0] structure: %s",
+                        dataframe_id,
+                        sample,
+                    )
 
                 node_ids = set()
                 for col in columns:
@@ -458,9 +459,14 @@ class Vantage6Service(
                     if nid is not None:
                         node_ids.add(int(nid))
 
-                logger.info("[V6] Dataframe %s found on node IDs: %s", dataframe_id, node_ids)
+                logger.info(
+                    "[V6] Dataframe %s found on node IDs: %s", dataframe_id, node_ids
+                )
                 if not node_ids:
-                    logger.warning("[V6] Could not extract node IDs from dataframe %s columns — dataframe filter skipped", dataframe_id)
+                    logger.warning(
+                        "[V6] Could not extract node IDs from dataframe %s columns — dataframe filter skipped",
+                        dataframe_id,
+                    )
                     return set()
 
                 node_response = client.get(
@@ -475,12 +481,15 @@ class Vantage6Service(
                     for node in nodes
                     if node.get("id") in node_ids
                 }
-                logger.info("[V6] Dataframe %s present for org IDs: %s", dataframe_id, org_ids)
+                logger.info(
+                    "[V6] Dataframe %s present for org IDs: %s", dataframe_id, org_ids
+                )
                 return org_ids
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] Dataframe org lookup failed (%s): %s",
-                exc.response.status_code, exc.response.text,
+                exc.response.status_code,
+                exc.response.text,
             )
         except httpx.RequestError as exc:
             logger.error("[V6] Vantage6 unreachable fetching dataframe orgs: %s", exc)
@@ -522,18 +531,20 @@ class Vantage6Service(
             )
             if df_org_ids:
                 org_ids = [oid for oid in org_ids if oid in df_org_ids]
-                logger.info("[V6] Org IDs after dataframe %s filter: %s", dataframe_id, org_ids)
+                logger.info(
+                    "[V6] Org IDs after dataframe %s filter: %s", dataframe_id, org_ids
+                )
         return org_ids
 
-    def _get_study_id_for_dataframe(self, db: Session, dataframe_id: int, access_token: str = None):
+    def _get_study_id_for_dataframe(
+        self, db: Session, dataframe_id: int, access_token: str = None
+    ):
         """Returns v6_study_id for the workspace that owns the given dataframe.
         Primary: DB lookup via cohort → workspace.
         Fallback: V6 API lookup via dataframe → session → study.
         """
         cohort = (
-            db.query(Cohort)
-            .filter(Cohort.dataframe_vantage_id == dataframe_id)
-            .first()
+            db.query(Cohort).filter(Cohort.dataframe_vantage_id == dataframe_id).first()
         )
         if cohort:
             workspace = (
@@ -542,7 +553,8 @@ class Vantage6Service(
             if workspace and workspace.v6_study_id:
                 logger.info(
                     "[V6] Study ID from DB for dataframe %s: %s",
-                    dataframe_id, workspace.v6_study_id,
+                    dataframe_id,
+                    workspace.v6_study_id,
                 )
                 return workspace.v6_study_id
             logger.warning(
@@ -550,10 +562,15 @@ class Vantage6Service(
                 dataframe_id,
             )
         else:
-            logger.warning("[V6] No cohort found in DB for dataframe_vantage_id=%s — trying V6 fallback", dataframe_id)
+            logger.warning(
+                "[V6] No cohort found in DB for dataframe_vantage_id=%s — trying V6 fallback",
+                dataframe_id,
+            )
 
         if access_token:
-            study_id = self._get_study_id_from_v6(access_token=access_token, dataframe_id=dataframe_id)
+            study_id = self._get_study_id_from_v6(
+                access_token=access_token, dataframe_id=dataframe_id
+            )
             if study_id:
                 return study_id
 
@@ -579,7 +596,11 @@ class Vantage6Service(
                 )
                 df_response.raise_for_status()
                 df_data = df_response.json()
-                logger.debug("[V6] Dataframe %s raw response keys: %s", dataframe_id, list(df_data.keys()))
+                logger.debug(
+                    "[V6] Dataframe %s raw response keys: %s",
+                    dataframe_id,
+                    list(df_data.keys()),
+                )
 
                 # Extract session_id — handle both flat and nested V6 responses
                 session_id = df_data.get("session_id")
@@ -591,10 +612,15 @@ class Vantage6Service(
                         session_id = session_obj
 
                 if not session_id:
-                    logger.warning("[V6] Could not extract session_id from dataframe %s response", dataframe_id)
+                    logger.warning(
+                        "[V6] Could not extract session_id from dataframe %s response",
+                        dataframe_id,
+                    )
                     return None
 
-                logger.info("[V6] Dataframe %s belongs to session %s", dataframe_id, session_id)
+                logger.info(
+                    "[V6] Dataframe %s belongs to session %s", dataframe_id, session_id
+                )
 
                 session_response = client.get(
                     f"{self.base_url}/session/{session_id}",
@@ -602,7 +628,11 @@ class Vantage6Service(
                 )
                 session_response.raise_for_status()
                 session_data = session_response.json()
-                logger.debug("[V6] Session %s raw response keys: %s", session_id, list(session_data.keys()))
+                logger.debug(
+                    "[V6] Session %s raw response keys: %s",
+                    session_id,
+                    list(session_data.keys()),
+                )
 
                 # Extract study_id — handle both flat and nested
                 study_id = session_data.get("study_id")
@@ -614,16 +644,24 @@ class Vantage6Service(
                         study_id = study_obj
 
                 if study_id:
-                    logger.info("[V6] Study ID from V6 for dataframe %s: %s", dataframe_id, study_id)
+                    logger.info(
+                        "[V6] Study ID from V6 for dataframe %s: %s",
+                        dataframe_id,
+                        study_id,
+                    )
                     return str(study_id)
 
-                logger.warning("[V6] Could not extract study_id from session %s response", session_id)
+                logger.warning(
+                    "[V6] Could not extract study_id from session %s response",
+                    session_id,
+                )
                 return None
 
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] V6 fallback study lookup failed (%s): %s",
-                exc.response.status_code, exc.response.text,
+                exc.response.status_code,
+                exc.response.text,
             )
         except httpx.RequestError as exc:
             logger.error("[V6] V6 fallback study lookup unreachable: %s", exc)
@@ -632,27 +670,29 @@ class Vantage6Service(
     def _get_session_id_for_dataframe(self, db: Session, dataframe_id: int):
         """Returns session_id_vantage for the analysis that owns the given dataframe."""
         cohort = (
-            db.query(Cohort)
-            .filter(Cohort.dataframe_vantage_id == dataframe_id)
-            .first()
+            db.query(Cohort).filter(Cohort.dataframe_vantage_id == dataframe_id).first()
         )
         if not cohort:
             logger.warning("[V6] No cohort found for dataframe_id=%s", dataframe_id)
             return None
-        analysis = (
-            db.query(Analysis).filter(Analysis.id == cohort.analysis_id).first()
-        )
+        analysis = db.query(Analysis).filter(Analysis.id == cohort.analysis_id).first()
         if not analysis:
-            logger.warning("[V6] No analysis found for cohort analysis_id=%s", cohort.analysis_id)
+            logger.warning(
+                "[V6] No analysis found for cohort analysis_id=%s", cohort.analysis_id
+            )
             return None
         return analysis.session_id_vantage
 
     @staticmethod
     def _parse_missing_dataframe_orgs(error_msg: str) -> set[int]:
         """Extract org IDs from V6 error 'not present for the following organizations: X, Y'."""
-        match = re.search(r"not present for the following organizations:\s*([\d,\s]+)", error_msg)
+        match = re.search(
+            r"not present for the following organizations:\s*([\d,\s]+)", error_msg
+        )
         if match:
-            return {int(x.strip()) for x in match.group(1).split(",") if x.strip().isdigit()}
+            return {
+                int(x.strip()) for x in match.group(1).split(",") if x.strip().isdigit()
+            }
         return set()
 
     def _post_preprocess_with_retry(self, *, client, dataframe_id, payload, headers):
@@ -661,14 +701,30 @@ class Vantage6Service(
         response = client.post(url, json=payload, headers=headers)
         logger.info("[V6] POST to %s returned status %s", url, response.status_code)
         if response.status_code == 400:
-            bad_orgs = self._parse_missing_dataframe_orgs(response.json().get("msg", ""))
+            bad_orgs = self._parse_missing_dataframe_orgs(
+                response.json().get("msg", "")
+            )
             if bad_orgs:
-                remaining = [o for o in payload["task"]["organizations"] if o["id"] not in bad_orgs]
+                remaining = [
+                    o
+                    for o in payload["task"]["organizations"]
+                    if o["id"] not in bad_orgs
+                ]
                 if remaining:
-                    logger.warning("[V6] Retrying preprocess without orgs %s (dataframe not present)", bad_orgs)
-                    payload = {**payload, "task": {**payload["task"], "organizations": remaining}}
+                    logger.warning(
+                        "[V6] Retrying preprocess without orgs %s (dataframe not present)",
+                        bad_orgs,
+                    )
+                    payload = {
+                        **payload,
+                        "task": {**payload["task"], "organizations": remaining},
+                    }
                     response = client.post(url, json=payload, headers=headers)
-                    logger.info("[V6] Retry POST to %s returned status %s", url, response.status_code)
+                    logger.info(
+                        "[V6] Retry POST to %s returned status %s",
+                        url,
+                        response.status_code,
+                    )
         return response
 
     def _post_task_with_retry(self, *, client, payload, headers, org_arg_key):
@@ -677,27 +733,44 @@ class Vantage6Service(
         response = client.post(url, json=payload, headers=headers)
         logger.info("[V6] POST to %s returned status %s", url, response.status_code)
         if response.status_code == 400:
-            bad_orgs = self._parse_missing_dataframe_orgs(response.json().get("msg", ""))
+            bad_orgs = self._parse_missing_dataframe_orgs(
+                response.json().get("msg", "")
+            )
             if bad_orgs:
                 payload = json.loads(json.dumps(payload))  # deep copy
                 for org in payload["organizations"]:
                     args = json.loads(base64.b64decode(org["arguments"]))
                     if org_arg_key in args:
-                        args[org_arg_key] = [o for o in args[org_arg_key] if o not in bad_orgs]
-                        org["arguments"] = base64.b64encode(json.dumps(args).encode()).decode()
+                        args[org_arg_key] = [
+                            o for o in args[org_arg_key] if o not in bad_orgs
+                        ]
+                        org["arguments"] = base64.b64encode(
+                            json.dumps(args).encode()
+                        ).decode()
                 # If the central task org itself is bad, replace its ID with first remaining good org
                 central = payload["organizations"][0]
                 if central["id"] in bad_orgs:
                     args = json.loads(base64.b64decode(central["arguments"]))
                     valid_orgs = args.get(org_arg_key, [])
                     if not valid_orgs:
-                        logger.error("[V6] No valid orgs left after dataframe filter — cannot retry task")
+                        logger.error(
+                            "[V6] No valid orgs left after dataframe filter — cannot retry task"
+                        )
                         return response
                     central["id"] = valid_orgs[0]
-                    central["arguments"] = base64.b64encode(json.dumps(args).encode()).decode()
-                logger.warning("[V6] Retrying task without orgs %s (dataframe not present)", bad_orgs)
+                    central["arguments"] = base64.b64encode(
+                        json.dumps(args).encode()
+                    ).decode()
+                logger.warning(
+                    "[V6] Retrying task without orgs %s (dataframe not present)",
+                    bad_orgs,
+                )
                 response = client.post(url, json=payload, headers=headers)
-                logger.info("[V6] Retry POST to %s returned status %s", url, response.status_code)
+                logger.info(
+                    "[V6] Retry POST to %s returned status %s",
+                    url,
+                    response.status_code,
+                )
         return response
 
     def _get_session_org_ids(self, *, access_token: str, session_id) -> set[int]:
@@ -721,10 +794,14 @@ class Vantage6Service(
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] Session org lookup failed for session %s (%s): %s",
-                session_id, exc.response.status_code, exc.response.text,
+                session_id,
+                exc.response.status_code,
+                exc.response.text,
             )
         except httpx.RequestError as exc:
-            logger.error("[V6] Vantage6 unreachable fetching session orgs: %s", str(exc))
+            logger.error(
+                "[V6] Vantage6 unreachable fetching session orgs: %s", str(exc)
+            )
         return set()
 
     def _get_org_names(
@@ -779,7 +856,7 @@ class Vantage6Service(
             response.raise_for_status()
 
             response_data = response.json()
-            
+
             v6_sesssion_id = (
                 str(response_data.get("id"))
                 if isinstance(response_data, dict) and "id" in response_data
@@ -850,10 +927,12 @@ class Vantage6Service(
                     {
                         "id": org_id,
                         "arguments": base64.b64encode(
-                            json.dumps({
-                                "patient_ids": patient_ids_by_org[org_id],
-                                "features": features,
-                            }).encode("UTF-8")
+                            json.dumps(
+                                {
+                                    "patient_ids": patient_ids_by_org[org_id],
+                                    "features": features,
+                                }
+                            ).encode("UTF-8")
                         ).decode("UTF-8"),
                     }
                     for org_id in orgs_to_include
@@ -880,8 +959,6 @@ class Vantage6Service(
             response.raise_for_status()
 
             response_data = response.json()
-
-            
 
             task_id = response_data["last_session_task"]["id"]
             dataframe_id = response_data["id"]
@@ -988,10 +1065,6 @@ class Vantage6Service(
             if cohort.dataframe_vantage_id is not None
         ]
 
-        logger.info("[V6] workspace from db =%s", workspace)
-
-        logger.info("[V6] analysis from db =%s", analysis)
-        logger.info("[V6] cohorts from db =%s", dataframe_ids)
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
@@ -1010,13 +1083,16 @@ class Vantage6Service(
             "Content-Type": "application/json",
         }
 
+        central_tak = org_ids[0]
+        org_to_include = [oid for oid in org_ids if oid != central_tak]
+
         org_input = [
             {
-                "id": org_ids[0],  # Central task
+                "id": central_tak,  # Central task
                 "arguments": base64.b64encode(
                     json.dumps(
                         {
-                            "organizations_to_include": org_ids,
+                            "organizations_to_include": org_to_include,
                         }
                     ).encode("UTF-8")
                 ).decode("UTF-8"),
@@ -1055,8 +1131,6 @@ class Vantage6Service(
             response.raise_for_status()
 
             response_data = response.json()
-
-            
 
             task_id = response_data["id"]
             job_id = response_data["job_id"]
@@ -1219,8 +1293,6 @@ class Vantage6Service(
 
             response_data = response.json()
 
-            
-
             task_id = response_data["id"]
             job_id = response_data["job_id"]
 
@@ -1308,17 +1380,12 @@ class Vantage6Service(
             if cohort.dataframe_vantage_id is not None
         ]
 
-        logger.info("[V6] workspace from db =%s", workspace)
-        logger.info("[V6] analysis from db =%s", analysis)
-        logger.info("[V6] cohorts from db =%s", dataframe_ids)
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
             study_id=workspace.v6_study_id,
             dataframe_id=dataframe_ids[0] if dataframe_ids else None,
         )
-
-        logger.info("[V6] Organization IDs fetched: %s", org_ids)
 
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -1371,8 +1438,6 @@ class Vantage6Service(
             response.raise_for_status()
 
             response_data = response.json()
-
-            
 
             task_id = response_data["id"]
             job_id = response_data["job_id"]
@@ -1489,7 +1554,7 @@ class Vantage6Service(
             )
             response.raise_for_status()
 
-            response_data = response.json()           
+            response_data = response.json()
 
             status_task = response_data["data"][0]["status"]
 
@@ -1507,6 +1572,228 @@ class Vantage6Service(
             logger.error("[V6] Vantage6 unreachable: %s", str(exc))
 
         return V6RunResult(status="ERROR")
+
+    def get_task_status_with_timeout(
+        self,
+        db: Session,
+        *,
+        access_token: str,
+        task_id: int,
+        timeout_minutes: int = 5,
+    ) -> Any:
+        """
+        Crea un nuevo data data_preparation en Vantage 6
+        """
+
+        logger.info("[V6] get_task_status_with_timeout START for task_id=%s", task_id)
+
+        algorithm = db.query(Algorithm).filter(Algorithm.task_id == task_id).first()
+        if not algorithm:
+            raise ValueError(f"Algorithm with task_id {task_id} not found")
+
+        if not self.base_url:
+            logger.warning("External data_preparation  URL not configured")
+            return
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}/run?task_id={task_id}",
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] GET to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            data = response.json().get("data", [])
+
+            logger.info("[V6] GET data for task_id=%s: %s", task_id, data)
+            if not data:
+                return None
+
+            task = data[0]
+
+            now = datetime.utcnow()
+            started_at = task.get("started_at")
+            finished_at = task.get("finished_at")
+
+            logger.info("[V6] GET task for task_id=%s: %s", task_id, task)
+
+            # parse ISO dates safely
+            def parse(dt):
+                if not dt:
+                    return None
+                try:
+                    return datetime.fromisoformat(dt.replace("Z", ""))
+                except Exception:
+                    return None
+
+            start_dt = parse(started_at)
+
+            algorithm.finished_at = finished_at
+            algorithm.started_at = started_at
+            algorithm.status_task = task.get("status")
+            logger.info("[V6] GET task for task_id=%s: %s", task_id, task)
+            if start_dt and not finished_at:
+                elapsed = now - start_dt
+
+                if elapsed > timedelta(minutes=timeout_minutes):
+                    logger.warning(
+                        "[V6] Task %s exceeded timeout (%s min). Marking as killed.",
+                        task_id,
+                        timeout_minutes,
+                    )
+                    algorithm.status_task = "killed_by_user_timeout"
+
+                    task["status"] = "killed_by_user_timeout"
+                    task["client_timeout_at"] = now.isoformat()
+
+            db.add(algorithm)
+            db.commit()
+            return task["status"]
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 organization lookup failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return None
+
+    async def update_algorithms_status_bulk_async(
+        self, db: Session, algorithms: List[Algorithm], access_token: str
+    ) -> List[Algorithm]:
+
+        logger.info("[V6] Async bulk update for %s algorithms", len(algorithms))
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+
+            tasks = [
+                self.fetch_algorithm_status(client, access_token, alg)
+                for alg in algorithms
+            ]
+
+            results = await asyncio.gather(*tasks)
+
+        # 🔥 aplicar resultados (SECUENCIAL DB SAFE)
+        updated_algorithms = []
+
+        for algorithm, data in results:
+            if data:
+                algorithm.started_at = data["started_at"]
+                algorithm.finished_at = data["finished_at"]
+                algorithm.status = data["status"]
+                updated_algorithms.append(algorithm)
+
+        db.commit()
+
+        for alg in updated_algorithms:
+            db.refresh(alg)
+
+        return updated_algorithms
+
+    async def fetch_algorithm_status(
+        self, client: httpx.AsyncClient, access_token: str, algorithm: Algorithm
+    ):
+        task_id = algorithm.task_id
+
+        try:
+            response = await client.get(
+                f"{self.base_url}/run?task_id={task_id}",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+            response.raise_for_status()
+            data = response.json().get("data", [])
+
+            if not data:
+                return algorithm, None
+
+            run_data = data[0]
+
+            return algorithm, {
+                "started_at": run_data.get("started_at"),
+                "finished_at": run_data.get("finished_at"),
+                "status": run_data.get("status"),
+            }
+
+        except Exception as e:
+            logger.error("[V6] Error fetching task %s: %s", task_id, str(e))
+            return algorithm, None
+
+    def update_algorithm_status_by_task_id(
+        self, db: Session, *, access_token: str, algorithm: Algorithm
+    ) -> Algorithm:
+        """
+        Crea un nuevo data data_preparation en Vantage 6
+        """
+
+        task_id = algorithm.task_id
+        logger.info(
+            "[V6] update_algorithm_status_by_task_id START for task_id=%s",
+            algorithm.task_id,
+        )
+
+        if not self.base_url:
+            logger.warning("External data_preparation  URL not configured")
+            return
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}/run?task_id={task_id}",
+                    headers=headers,
+                )
+
+            logger.info(
+                "[V6] GET to %s returned status %s", response.url, response.status_code
+            )
+            response.raise_for_status()
+
+            response_data = response.json()
+            data = response_data.get("data", [])
+
+            if not data:
+                logger.warning("[V6] No run data for task_id=%s", task_id)
+                return None
+
+            run_data = data[0]
+            algorithm.started_at = run_data["started_at"]
+            if run_data["finished_at"]:
+                algorithm.finished_at = run_data["finished_at"]
+            algorithm.status_task = run_data["status"]
+
+            return algorithm
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[V6] Vantage6 organization lookup failed (%s): %s",
+                exc.response.status_code,
+                exc.response.text,
+            )
+
+        except httpx.RequestError as exc:
+            logger.error("[V6] Vantage6 unreachable: %s", str(exc))
+
+        return None
 
     def get_result_task_id(self, *, access_token: str, task_id: int) -> V6DecodedResult:
         """
@@ -1591,7 +1878,14 @@ class Vantage6Service(
             if not isinstance(tasks, list):
                 raise RuntimeError("Unexpected response format from Vantage6")
 
-            return [{"id": t.get("id"), "method": t.get("method"), "status": t.get("status")} for t in tasks]
+            return [
+                {
+                    "id": t.get("id"),
+                    "method": t.get("method"),
+                    "status": t.get("status"),
+                }
+                for t in tasks
+            ]
 
         except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
             logger.exception(
@@ -1716,7 +2010,6 @@ class Vantage6Service(
             for cohort in cohorts
             if cohort.dataframe_vantage_id is not None
         ]
-
 
         org_ids = self._get_org_ids(
             access_token=access_token,
@@ -2137,7 +2430,9 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
-            study_id=self._get_study_id_for_dataframe(db, basic_arithmetic_in.dataframe_id, access_token),
+            study_id=self._get_study_id_for_dataframe(
+                db, basic_arithmetic_in.dataframe_id, access_token
+            ),
             dataframe_id=basic_arithmetic_in.dataframe_id,
         )
 
@@ -2195,6 +2490,9 @@ class Vantage6Service(
 
             task_id = response_data["last_session_task"]["id"]
             job_id = response_data["last_session_task"]["job_id"]
+            self.update_cohort_task_id(
+                db=db, dataframe_id=basic_arithmetic_in.dataframe_id, task_id=task_id
+            )
             self.delete_summary_after_update_variables(
                 db=db, dataframe_id=basic_arithmetic_in.dataframe_id
             )
@@ -2239,7 +2537,9 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
-            study_id=self._get_study_id_for_dataframe(db, merge_categories_in.dataframe_id, access_token),
+            study_id=self._get_study_id_for_dataframe(
+                db, merge_categories_in.dataframe_id, access_token
+            ),
             dataframe_id=merge_categories_in.dataframe_id,
         )
 
@@ -2296,6 +2596,9 @@ class Vantage6Service(
 
             task_id = response_data["last_session_task"]["id"]
             job_id = response_data["last_session_task"]["job_id"]
+            self.update_cohort_task_id(
+                db=db, dataframe_id=merge_categories_in.dataframe_id, task_id=task_id
+            )
             self.delete_summary_after_update_variables(
                 db=db, dataframe_id=merge_categories_in.dataframe_id
             )
@@ -2340,7 +2643,9 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
-            study_id=self._get_study_id_for_dataframe(db, timedelta_in.dataframe_id, access_token),
+            study_id=self._get_study_id_for_dataframe(
+                db, timedelta_in.dataframe_id, access_token
+            ),
             dataframe_id=timedelta_in.dataframe_id,
         )
 
@@ -2396,6 +2701,15 @@ class Vantage6Service(
 
             task_id = response_data["last_session_task"]["id"]
             job_id = response_data["last_session_task"]["job_id"]
+
+            logger.info(
+                "[V6] Extracted task_id TIMEDELTACREATION: %s, job_id: %s",
+                task_id,
+                job_id,
+            )
+            self.update_cohort_task_id(
+                db=db, dataframe_id=timedelta_in.dataframe_id, task_id=task_id
+            )
             self.delete_summary_after_update_variables(
                 db=db, dataframe_id=timedelta_in.dataframe_id
             )
@@ -2440,7 +2754,9 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
-            study_id=self._get_study_id_for_dataframe(db, to_boolean_in.dataframe_id, access_token),
+            study_id=self._get_study_id_for_dataframe(
+                db, to_boolean_in.dataframe_id, access_token
+            ),
             dataframe_id=to_boolean_in.dataframe_id,
         )
 
@@ -2497,6 +2813,9 @@ class Vantage6Service(
 
             task_id = response_data["last_session_task"]["id"]
             job_id = response_data["last_session_task"]["job_id"]
+            self.update_cohort_task_id(
+                db=db, dataframe_id=to_boolean_in.dataframe_id, task_id=task_id
+            )
             self.delete_summary_after_update_variables(
                 db=db, dataframe_id=to_boolean_in.dataframe_id
             )
@@ -2541,7 +2860,9 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
-            study_id=self._get_study_id_for_dataframe(db, one_hot_encoding_in.dataframe_id, access_token),
+            study_id=self._get_study_id_for_dataframe(
+                db, one_hot_encoding_in.dataframe_id, access_token
+            ),
             dataframe_id=one_hot_encoding_in.dataframe_id,
         )
 
@@ -2597,6 +2918,9 @@ class Vantage6Service(
 
             task_id = response_data["last_session_task"]["id"]
             job_id = response_data["last_session_task"]["job_id"]
+            self.update_cohort_task_id(
+                db=db, dataframe_id=one_hot_encoding_in.dataframe_id, task_id=task_id
+            )
             self.delete_summary_after_update_variables(
                 db=db, dataframe_id=one_hot_encoding_in.dataframe_id
             )
@@ -2641,7 +2965,9 @@ class Vantage6Service(
         org_ids = self._get_org_ids(
             access_token=access_token,
             collaboration_id=COLLABORATION_ID,
-            study_id=self._get_study_id_for_dataframe(db, merge_variables_in.dataframe_id, access_token),
+            study_id=self._get_study_id_for_dataframe(
+                db, merge_variables_in.dataframe_id, access_token
+            ),
             dataframe_id=merge_variables_in.dataframe_id,
         )
 
@@ -2698,6 +3024,9 @@ class Vantage6Service(
 
             task_id = response_data["last_session_task"]["id"]
             job_id = response_data["last_session_task"]["job_id"]
+            self.update_cohort_task_id(
+                db=db, dataframe_id=merge_variables_in.dataframe_id, task_id=task_id
+            )
             self.delete_summary_after_update_variables(
                 db=db, dataframe_id=merge_variables_in.dataframe_id
             )
@@ -2715,20 +3044,47 @@ class Vantage6Service(
             logger.error("[V6] Vantage6 unreachable: %s", str(exc))
 
         return V6TaskResult(task_id=-1, job_id=-1)
-    
+
+    def update_cohort_task_id(
+        self, db: Session, *, dataframe_id: int, task_id: int
+    ) -> bool:
+        """
+        Updates the task_id_vantage for the cohort that owns the given dataframe_id.
+        """
+        cohort = (
+            db.query(Cohort).filter(Cohort.dataframe_vantage_id == dataframe_id).first()
+        )
+
+        if not cohort:
+            logger.warning(
+                "[V6] No cohort found for dataframe_id=%s to update task_id",
+                dataframe_id,
+            )
+            return False
+
+        cohort.task_id_vantage = task_id
+        db.add(cohort)
+        db.commit()
+        logger.info(
+            "[V6] Updated cohort_id=%s task_id_vantage=%s for dataframe_id=%s",
+            cohort.id,
+            task_id,
+            dataframe_id,
+        )
+        return True
 
     def delete_summary_after_update_variables(
         self, db: Session, *, dataframe_id: int
     ) -> bool:
- 
+
         cohorts = (
             db.query(Cohort).filter(Cohort.dataframe_vantage_id == dataframe_id).all()
         )
- 
+
         if not cohorts:
             logger.info("[V6] No cohorts found for dataframe_id=%s", dataframe_id)
             return True
- 
+
         for cohort in cohorts:
             # Find all algorithms with method_name == "summary" linked to this cohort
             summary_algorithms = (
@@ -2740,14 +3096,14 @@ class Vantage6Service(
                 )
                 .all()
             )
- 
+
             if summary_algorithms:
                 logger.info(
                     "[V6] Found %d summary algorithms for cohort_id=%s",
                     len(summary_algorithms),
                     cohort.id,
                 )
- 
+
                 # Delete the CohortAlgorithm associations first
                 for algorithm in summary_algorithms:
                     cohort_alg = (
@@ -2764,7 +3120,7 @@ class Vantage6Service(
                             "[V6] Deleted CohortAlgorithm link for algorithm_id=%s",
                             algorithm.id,
                         )
- 
+
                 # Delete the Algorithm records
                 for algorithm in summary_algorithms:
                     db.delete(algorithm)
@@ -2772,12 +3128,13 @@ class Vantage6Service(
                         "[V6] Deleted algorithm_id=%s (method_name=summary)",
                         algorithm.id,
                     )
- 
+
         db.commit()
         logger.info(
             "[V6] Successfully deleted summary algorithms for dataframe_id=%s",
             dataframe_id,
         )
         return True
+
 
 vantage6_service = Vantage6Service()

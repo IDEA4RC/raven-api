@@ -23,7 +23,7 @@ class AnalysisOrchestratorService:
         user_id: int,
         access_token: str,
     ) -> dict:
-        logger.info("[API] Calling Vantage6Service.register_workspace")
+        logger.info("[API] Calling Vantage6Service.create_workspace_full")
 
         try:
             v6_study_id = vantage6_service.register_workspace(

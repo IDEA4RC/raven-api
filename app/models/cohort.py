@@ -29,7 +29,7 @@ class Cohort(Base):
     query_execution_id = Column(
         Integer, nullable=True
     )  # New field for query execution ID
-
+    dataframe_status = Column(Text, nullable=True)  # New field for dataframe status
     # Relationships
     user = relationship("User")
     analysis = relationship("Analysis", back_populates="cohorts")

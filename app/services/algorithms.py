@@ -11,22 +11,24 @@ from urllib import response
 import json
 
 from app import db
+from app.api.endpoints import algorithms
 from app.models.algorithm import Algorithm
 from app.schemas.algorithms import (
     AlgorithmCreate,
     AlgorithmUpdate,
 )
+from app.services.vantage_6 import Vantage6Service
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.models.cohort_algorithm import CohortAlgorithm
 from app.services.base import BaseService
 from app.models.cohort import Cohort
 from app.services.cohort import CohortService
-from app.utils.constants import ALGORITHMS
+from app.utils.constants import ALGORITHMS, TOKEN_V6
 import httpx
 
 logger = logging.getLogger(__name__)
-
+service_vantage6 = Vantage6Service()
 cohort_service = CohortService(Cohort)
 
 from app.utils.constants import API_BASE, ALGORITHMS
@@ -112,7 +114,22 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             .filter(subq.c.total_cohorts == len(cohort_ids))
             .filter(match_count_subq.c.match_count == len(cohort_ids))
         )
-        return query.all()
+
+        algorithms = query.all()
+
+        return algorithms
+
+    async def get_algorithms_with_status_async(
+        self, db: Session, cohort_ids: list[int], access_token: str
+    ) -> List[Algorithm]:
+
+        algorithms = self.get_algorithms_by_exact_cohort_list(
+            db=db, cohort_ids=cohort_ids
+        )
+
+        return await Vantage6Service.update_algorithms_status_bulk_async(
+            db=db, algorithms=algorithms, access_token=access_token
+        )
 
     def is_summary_cohort_list(
         self, db: Session, cohort_ids: list[int]
@@ -136,6 +153,33 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
                 == len(cohort_ids)
             )
         )
+        return query.all()
+
+    def are_ready_dataframes_cohort_list(
+        self, db: Session, cohort_ids: list[int]
+    ) -> List[Algorithm]:
+
+        logger.info(
+            "[ALGORITHMS] GET to are_ready_dataframes_cohort_list with cohort_ids: %s",
+            cohort_ids,
+        )
+        # Subquery: contar cohort_ids por algoritmo
+        query = (
+            db.query(Algorithm)
+            .join(CohortAlgorithm)
+            .filter(Algorithm.method_name == ALGORITHMS.SUMMARY)
+            .group_by(Algorithm.id)
+            .having(func.count(CohortAlgorithm.cohort_id) == len(cohort_ids))
+            .having(
+                func.count(
+                    func.nullif(CohortAlgorithm.cohort_id.in_(cohort_ids), False)
+                )
+                == len(cohort_ids)
+            )
+        )
+
+        algorithms = query.all()
+
         return query.all()
 
     def get_all_algorithm(self, db: Session) -> List[Algorithm]:
@@ -189,7 +233,7 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
         try:
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.get(
-                    f"{self.base_url}/task?id={task_id}",
+                    f"{self.base_url}/task/{task_id}",
                     headers=headers,
                 )
 
@@ -199,13 +243,12 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             response.raise_for_status()
             response_json = response.json()
 
-            tasks = response_json.get("data", [])
-            if not tasks:
+            if not response_json:
                 raise RuntimeError(f"No task found for id={task_id}")
 
-            task_metadata = tasks[0]
+            # task_metadata = tasks[0]
 
-            return task_metadata
+            return response_json
 
         except (httpx.HTTPError, ValueError, json.JSONDecodeError, KeyError) as exc:
             logger.exception(

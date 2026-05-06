@@ -1,0 +1,5 @@
+ALTER TABLE algorithms
+ADD COLUMN finished_at TIMESTAMPTZ NULL;
+
+ALTER TABLE algorithms
+ADD COLUMN started_at TIMESTAMPTZ NULL;

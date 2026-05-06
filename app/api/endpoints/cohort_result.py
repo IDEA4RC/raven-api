@@ -2,8 +2,9 @@
 Endpoints for cohort result operations
 """
 
-from typing import Any, List
-
+from typing import Any, Dict, List, Set
+from app.models.cohort import Cohort
+from app.services.cohort import CohortService
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 
@@ -12,9 +13,13 @@ from app.api.deps import get_current_user, get_db, get_current_user_with_token
 from app.api import CurrentUserContext
 from app.models.user import User
 from app.services.cohort_result import cohort_result_service
-from app.utils.constants import TOKEN_V6
+from app.utils.constants import COE_TOKEN_MAP, TOKEN_V6
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+cohort_service = CohortService(Cohort)
 
 
 @router.post(
@@ -193,3 +198,71 @@ def bulk_create_cohort_results(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/centers_cohort_results/{cohort_id}")
+def get_coes_results_by_by_cohort(
+    *,
+    db: Session = Depends(get_db),
+    cohort_id: int = Path(..., description="ID of the cohort"),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, List[str]]:
+    """
+    Gets all cohort results for a specific cohort with pagination.
+    """
+
+    cohort = cohort_service.get(db, cohort_id)
+    if not cohort:
+        return {"responded": [], "missing": []}
+
+    cohort_results = cohort_result_service.get_by_cohort(
+        db=db, cohort_id=cohort_id, skip=skip, limit=limit
+    )
+
+    responded: Set[str] = set()
+
+    for result in cohort_results:
+        data_items = getattr(result, "data_id", None)
+        if not data_items:
+            continue
+
+        for data in data_items:
+            token = data.get("token")
+            if not token:
+                continue
+
+            center = COE_TOKEN_MAP.get(token)
+            if center:
+                responded.add(center)
+
+    # --- Expected ---
+    expected: Set[str] = cohort_result_service._get_expected_coes(db, cohort)
+
+    # --- Missing ---
+    missing = expected - responded
+
+    return {
+        "responded": sorted(responded),
+        "missing": sorted(missing),
+    }
+
+    centers: list[str] = []
+
+    for result in cohort_results:
+        data_items = getattr(result, "data_id", None)
+
+        if not data_items:
+            continue
+
+        for data in data_items:
+            token = data.get("token")
+            if not token:
+                continue
+
+            center = COE_TOKEN_MAP.get(token)
+            if center:
+                centers.append(center)
+
+    return centers

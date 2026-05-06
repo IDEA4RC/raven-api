@@ -19,7 +19,13 @@ from app.models.workspace import Workspace
 from app.schemas.cohort_result import CohortResultCreate, CohortResultUpdate
 from app.services.base import BaseService
 from app.services.vantage_6 import vantage6_service
-from app.utils.constants import CohortStatus, typeOfDiseases, COE_TOKEN_MAP, COE_TOKEN_ORG_MAP, PermitStatus
+from app.utils.constants import (
+    CohortStatus,
+    typeOfDiseases,
+    COE_TOKEN_MAP,
+    COE_TOKEN_ORG_MAP,
+    PermitStatus,
+)
 
 COHORT_RESULT_WAIT_TIMEOUT = timedelta(minutes=1)
 
@@ -64,7 +70,9 @@ class CohortResultService(
         )
         algorithm_ids = [row.algorithm_id for row in cohort_algorithm_rows]
 
-        db.query(CohortAlgorithm).filter(CohortAlgorithm.cohort_id == cohort_id).delete()
+        db.query(CohortAlgorithm).filter(
+            CohortAlgorithm.cohort_id == cohort_id
+        ).delete()
 
         for alg_id in algorithm_ids:
             still_linked = (
@@ -76,11 +84,15 @@ class CohortResultService(
                 db.query(Algorithm).filter(Algorithm.id == alg_id).delete()
 
         db.commit()
-        logger.info("[CREATE_COHORT_RESULT] Deleted all analyses for cohort_id=%s (count=%d)", cohort_id, len(algorithm_ids))
+        logger.info(
+            "[CREATE_COHORT_RESULT] Deleted all analyses for cohort_id=%s (count=%d)",
+            cohort_id,
+            len(algorithm_ids),
+        )
 
     def _collect_patient_ids_from_jsonb(self, executions: list) -> List[int]:
         ids: List[int] = []
-        for entry in (executions or []):
+        for entry in executions or []:
             ids.extend(entry.get("patient_ids", []))
         return list(dict.fromkeys(ids))
 
@@ -172,7 +184,9 @@ class CohortResultService(
             analysis.session_id_vantage,
         )
 
-        workspace = db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        workspace = (
+            db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
+        )
         study_id = workspace.v6_study_id if workspace else None
 
         createDataFrameResponse = vantage6_service.create_new_cohort(
@@ -204,7 +218,9 @@ class CohortResultService(
             .first()
         )
 
-    def get_by_cohort_last(self, db: Session, *, cohort_id: int) -> Optional[CohortResult]:
+    def get_by_cohort_last(
+        self, db: Session, *, cohort_id: int
+    ) -> Optional[CohortResult]:
         return db.query(self.model).filter(self.model.cohort_id == cohort_id).first()
 
     def get_by_cohort(
@@ -232,19 +248,36 @@ class CohortResultService(
 
         logger.info(
             "[CREATE_COHORT_RESULT] COE status — expected: %s | responded: %s",
-            expected_coes, responded_coes,
+            expected_coes,
+            responded_coes,
         )
 
         if expected_coes and responded_coes >= expected_coes:
-            logger.info("[CREATE_COHORT_RESULT] All expected COEs responded — creating dataframe")
-            self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
+            logger.info(
+                "[CREATE_COHORT_RESULT] All expected COEs responded — creating dataframe"
+            )
+            self._update_cohort_execution_and_v6(
+                db, cohort=cohort, access_token=access_token
+            )
             return
 
-        received_at_values = [entry.get("received_at") for entry in data_id if entry.get("received_at")]
-        remaining = max(0, int(COHORT_RESULT_WAIT_TIMEOUT.total_seconds() - (
-            (datetime.now(timezone.utc) - datetime.fromisoformat(min(received_at_values))).total_seconds()
-            if received_at_values else 0
-        )))
+        received_at_values = [
+            entry.get("received_at") for entry in data_id if entry.get("received_at")
+        ]
+        remaining = max(
+            0,
+            int(
+                COHORT_RESULT_WAIT_TIMEOUT.total_seconds()
+                - (
+                    (
+                        datetime.now(timezone.utc)
+                        - datetime.fromisoformat(min(received_at_values))
+                    ).total_seconds()
+                    if received_at_values
+                    else 0
+                )
+            ),
+        )
         logger.info(
             "[CREATE_COHORT_RESULT] Waiting for more COEs — %d/%d responded, timeout in %ds",
             len(responded_coes),
@@ -263,12 +296,18 @@ class CohortResultService(
 
         now = datetime.now(timezone.utc)
         for cohort in cohorts_waiting:
-            cohort_result = db.query(CohortResult).filter(CohortResult.cohort_id == cohort.id).first()
+            cohort_result = (
+                db.query(CohortResult)
+                .filter(CohortResult.cohort_id == cohort.id)
+                .first()
+            )
             if not cohort_result or not cohort_result.data_id:
                 continue
 
             received_at_values = [
-                entry.get("received_at") for entry in cohort_result.data_id if entry.get("received_at")
+                entry.get("received_at")
+                for entry in cohort_result.data_id
+                if entry.get("received_at")
             ]
             if not received_at_values:
                 continue
@@ -287,7 +326,9 @@ class CohortResultService(
             missing = expected_coes - responded_coes
             logger.info(
                 "[TIMEOUT_WATCHER] Cohort %s timed out after %ds — marking PARTIALLY_EXECUTED (missing: %s)",
-                cohort.id, elapsed.seconds, missing,
+                cohort.id,
+                elapsed.seconds,
+                missing,
             )
             cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
             db.add(cohort)
@@ -297,29 +338,54 @@ class CohortResultService(
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
     ) -> CohortResult:
-        logger.info("[CREATE_COHORT_RESULT] START - full payload: %s", obj_in.model_dump())
+        logger.info(
+            "[CREATE_COHORT_RESULT] START - full payload: %s", obj_in.model_dump()
+        )
 
         cohort = db.query(Cohort).filter(Cohort.id == obj_in.cohort_id).first()
         if not cohort:
             logger.error("[CREATE_COHORT_RESULT] Cohort %s not found", obj_in.cohort_id)
             raise ValueError(f"Cohort with ID {obj_in.cohort_id} not found")
-        logger.info("[CREATE_COHORT_RESULT] Cohort found: id=%s status=%s workspace_id=%s", cohort.id, cohort.status, cohort.workspace_id)
+        logger.info(
+            "[CREATE_COHORT_RESULT] Cohort found: id=%s status=%s workspace_id=%s",
+            cohort.id,
+            cohort.status,
+            cohort.workspace_id,
+        )
 
         if len(obj_in.data_id) != 1:
-            logger.error("[CREATE_COHORT_RESULT] data_id has %d keys, expected 1: %s", len(obj_in.data_id), list(obj_in.data_id.keys()))
+            logger.error(
+                "[CREATE_COHORT_RESULT] data_id has %d keys, expected 1: %s",
+                len(obj_in.data_id),
+                list(obj_in.data_id.keys()),
+            )
             raise ValueError("data_id must contain exactly one CoE token key")
 
         token, entries = next(iter(obj_in.data_id.items()))
-        logger.info("[CREATE_COHORT_RESULT] Token received: %s | entries count: %d", token, len(entries))
+        logger.info(
+            "[CREATE_COHORT_RESULT] Token received: %s | entries count: %d",
+            token,
+            len(entries),
+        )
 
         center = COE_TOKEN_MAP.get(token)
         if center is None:
-            logger.error("[CREATE_COHORT_RESULT] Unknown CoE token: '%s' | Known tokens: %s", token, list(COE_TOKEN_MAP.keys()))
+            logger.error(
+                "[CREATE_COHORT_RESULT] Unknown CoE token: '%s' | Known tokens: %s",
+                token,
+                list(COE_TOKEN_MAP.keys()),
+            )
             raise ValueError(f"Unknown CoE token: {token}")
         expected_coes = self._get_expected_coes(db, cohort)
         if expected_coes and center not in expected_coes:
-            logger.warning("[CREATE_COHORT_RESULT] Center '%s' not in coes_granted %s — rejecting", center, expected_coes)
-            raise ValueError(f"Center '{center}' is not authorized to send results for this cohort")
+            logger.warning(
+                "[CREATE_COHORT_RESULT] Center '%s' not in coes_granted %s — rejecting",
+                center,
+                expected_coes,
+            )
+            raise ValueError(
+                f"Center '{center}' is not authorized to send results for this cohort"
+            )
 
         # Reject if this token already submitted (prevents duplicates on re-execution)
         existing_check = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
@@ -329,13 +395,21 @@ class CohortResultService(
         if already_submitted:
             logger.warning(
                 "[CREATE_COHORT_RESULT] Token '%s' already submitted for cohort %s — rejecting duplicate",
-                token, cohort.id,
+                token,
+                cohort.id,
             )
-            raise ValueError(f"Token '{token}' has already submitted results for this cohort")
+            raise ValueError(
+                f"Token '{token}' has already submitted results for this cohort"
+            )
 
         for i, e in enumerate(entries):
-            logger.info("[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
-                i, e.execution_date, len(e.patient_ids), e.patient_ids[:3])
+            logger.info(
+                "[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
+                i,
+                e.execution_date,
+                len(e.patient_ids),
+                e.patient_ids[:3],
+            )
 
         now_iso = datetime.now(timezone.utc).isoformat()
         new_executions = [
@@ -351,7 +425,11 @@ class CohortResultService(
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
         if existing:
             current = existing.data_id or []
-            logger.info("[CREATE_COHORT_RESULT] Appending to existing record id=%s (current entries=%d)", existing.id, len(current))
+            logger.info(
+                "[CREATE_COHORT_RESULT] Appending to existing record id=%s (current entries=%d)",
+                existing.id,
+                len(current),
+            )
             existing.data_id = current + new_executions
             db.add(existing)
             db.commit()
@@ -366,9 +444,14 @@ class CohortResultService(
 
         logger.info(
             "[CREATE_COHORT_RESULT] Saved OK cohort_id=%s token=%s executions=%d total_stored=%d",
-            obj_in.cohort_id, token, len(new_executions), len(db_obj.data_id),
+            obj_in.cohort_id,
+            token,
+            len(new_executions),
+            len(db_obj.data_id),
         )
-        self._maybe_create_dataframe(db, cohort=cohort, data_id=db_obj.data_id, access_token=access_token)
+        self._maybe_create_dataframe(
+            db, cohort=cohort, data_id=db_obj.data_id, access_token=access_token
+        )
 
         logger.info("[CREATE_COHORT_RESULT] END OK cohort_id=%s", obj_in.cohort_id)
         return db_obj
@@ -424,9 +507,7 @@ class CohortResultService(
         db.commit()
         return deleted_count
 
-    def get_data_ids_for_cohort(
-        self, db: Session, *, cohort_id: int
-    ) -> List[Any]:
+    def get_data_ids_for_cohort(self, db: Session, *, cohort_id: int) -> List[Any]:
         results = (
             db.query(self.model.data_id).filter(self.model.cohort_id == cohort_id).all()
         )

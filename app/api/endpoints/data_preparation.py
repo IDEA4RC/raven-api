@@ -10,7 +10,9 @@ from app.models.user import User
 from app.api import CurrentUserContext
 from app.utils.constants import TOKEN_V6
 from typing import Any, List, Dict
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -319,6 +321,36 @@ def get_status_task(
             raise HTTPException(status_code=404, detail="No status for the task id")
 
         return status_task
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/run_status/{task_id}",
+    status_code=status.HTTP_200_OK,
+)
+def get_run_task(
+    *,
+    db: Session = Depends(get_db),
+    task_id: int,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Check the status of the API.
+    Returns a JSON response indicating the service is working correctly.
+    """
+
+    try:
+        user = current_user.user
+        access_token = current_user.access_token
+
+        result = service.get_run_by_task_id(access_token=TOKEN_V6, task_id=task_id)
+        logger.info("Status task for task_id=%s: %s", task_id, result)
+        if not result:
+            raise HTTPException(status_code=404, detail="No status for the task id")
+
+        return result
 
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
