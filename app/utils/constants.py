@@ -33,6 +33,7 @@ class CohortStatus(int, Enum):
     CREATED = 0
     EXECUTED = 1
     ERROR = 2
+    PARTIALLY_EXECUTED = 3
 
 
 class MetadataStatus(int, Enum):

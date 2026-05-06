@@ -226,50 +226,73 @@ class CohortResultService(
         data_id: list,
         access_token: str,
     ) -> None:
-        """Decide whether to create/recreate the V6 dataframe based on COE responses and timeout."""
+        """Create the V6 dataframe if all expected COEs have responded."""
         expected_coes = self._get_expected_coes(db, cohort)
         responded_coes = self._get_responded_coes(data_id)
-        has_existing_dataframe = cohort.dataframe_vantage_id is not None
 
         logger.info(
-            "[CREATE_COHORT_RESULT] COE status — expected: %s | responded: %s | existing dataframe: %s",
-            expected_coes, responded_coes, cohort.dataframe_vantage_id,
+            "[CREATE_COHORT_RESULT] COE status — expected: %s | responded: %s",
+            expected_coes, responded_coes,
         )
-
-        if has_existing_dataframe:
-            logger.info("[CREATE_COHORT_RESULT] New COE after existing dataframe — deleting all analyses and recreating")
-            self._delete_all_analyses_for_cohort(db, cohort.id)
-            self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
-            return
 
         if expected_coes and responded_coes >= expected_coes:
             logger.info("[CREATE_COHORT_RESULT] All expected COEs responded — creating dataframe")
             self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
             return
 
-        # Check timeout using received_at of first entry
         received_at_values = [entry.get("received_at") for entry in data_id if entry.get("received_at")]
-        if received_at_values:
-            first_received = datetime.fromisoformat(min(received_at_values))
-            elapsed = datetime.now(timezone.utc) - first_received
-            if elapsed >= COHORT_RESULT_WAIT_TIMEOUT:
-                missing = expected_coes - responded_coes
-                logger.info(
-                    "[CREATE_COHORT_RESULT] Timeout reached (%ds) — creating dataframe with %d/%d expected COEs: %s (missing: %s)",
-                    elapsed.seconds, len(responded_coes & expected_coes), len(expected_coes), responded_coes & expected_coes, missing,
-                )
-                self._update_cohort_execution_and_v6(db, cohort=cohort, access_token=access_token)
-                return
-
+        remaining = max(0, int(COHORT_RESULT_WAIT_TIMEOUT.total_seconds() - (
+            (datetime.now(timezone.utc) - datetime.fromisoformat(min(received_at_values))).total_seconds()
+            if received_at_values else 0
+        )))
         logger.info(
             "[CREATE_COHORT_RESULT] Waiting for more COEs — %d/%d responded, timeout in %ds",
             len(responded_coes),
             len(expected_coes) if expected_coes else "?",
-            max(0, int(COHORT_RESULT_WAIT_TIMEOUT.total_seconds() - (
-                (datetime.now(timezone.utc) - datetime.fromisoformat(min(received_at_values))).total_seconds()
-                if received_at_values else 0
-            ))),
+            remaining,
         )
+
+    def check_cohort_timeouts(self, db: Session) -> None:
+        """Background task: mark cohorts as PARTIALLY_EXECUTED if timeout elapsed without all COEs."""
+        cohorts_waiting = (
+            db.query(Cohort)
+            .join(CohortResult, CohortResult.cohort_id == Cohort.id)
+            .filter(Cohort.status == CohortStatus.CREATED.value)
+            .all()
+        )
+
+        now = datetime.now(timezone.utc)
+        for cohort in cohorts_waiting:
+            cohort_result = db.query(CohortResult).filter(CohortResult.cohort_id == cohort.id).first()
+            if not cohort_result or not cohort_result.data_id:
+                continue
+
+            received_at_values = [
+                entry.get("received_at") for entry in cohort_result.data_id if entry.get("received_at")
+            ]
+            if not received_at_values:
+                continue
+
+            first_received = datetime.fromisoformat(min(received_at_values))
+            elapsed = now - first_received
+            if elapsed < COHORT_RESULT_WAIT_TIMEOUT:
+                continue
+
+            expected_coes = self._get_expected_coes(db, cohort)
+            responded_coes = self._get_responded_coes(cohort_result.data_id)
+
+            if expected_coes and responded_coes >= expected_coes:
+                continue
+
+            missing = expected_coes - responded_coes
+            logger.info(
+                "[TIMEOUT_WATCHER] Cohort %s timed out after %ds — marking PARTIALLY_EXECUTED (missing: %s)",
+                cohort.id, elapsed.seconds, missing,
+            )
+            cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
+            db.add(cohort)
+
+        db.commit()
 
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
@@ -297,6 +320,18 @@ class CohortResultService(
         if expected_coes and center not in expected_coes:
             logger.warning("[CREATE_COHORT_RESULT] Center '%s' not in coes_granted %s — rejecting", center, expected_coes)
             raise ValueError(f"Center '{center}' is not authorized to send results for this cohort")
+
+        # Reject if this token already submitted (prevents duplicates on re-execution)
+        existing_check = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
+        already_submitted = existing_check and any(
+            e.get("token") == token for e in (existing_check.data_id or [])
+        )
+        if already_submitted:
+            logger.warning(
+                "[CREATE_COHORT_RESULT] Token '%s' already submitted for cohort %s — rejecting duplicate",
+                token, cohort.id,
+            )
+            raise ValueError(f"Token '{token}' has already submitted results for this cohort")
 
         for i, e in enumerate(entries):
             logger.info("[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
