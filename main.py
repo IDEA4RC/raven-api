@@ -2,7 +2,6 @@
 Main FastAPI application instance.
 """
 
-import asyncio
 import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -19,32 +18,9 @@ import logging
 import sys
 
 
-async def _cohort_timeout_watcher() -> None:
-    """Periodically marks cohorts as PARTIALLY_EXECUTED when timeout elapses without all COEs."""
-    from app.db.session import SessionLocal
-    from app.services.cohort_result import cohort_result_service
-
-    log = logging.getLogger("app.timeout_watcher")
-    while True:
-        await asyncio.sleep(30)
-        db = SessionLocal()
-        try:
-            cohort_result_service.check_cohort_timeouts(db)
-        except Exception:
-            log.exception("[TIMEOUT_WATCHER] Unexpected error")
-        finally:
-            db.close()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(_cohort_timeout_watcher())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
 
 
 app = FastAPI(

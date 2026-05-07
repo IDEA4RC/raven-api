@@ -5,7 +5,7 @@ Service for cohort result operations
 from typing import Any, List, Optional, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import logging
 
 from app.models.cohort_result import CohortResult
@@ -26,9 +26,6 @@ from app.utils.constants import (
     COE_TOKEN_ORG_MAP,
     PermitStatus,
 )
-
-COHORT_RESULT_WAIT_TIMEOUT = timedelta(minutes=1)
-
 
 logger = logging.getLogger(__name__)
 
@@ -261,79 +258,11 @@ class CohortResultService(
             )
             return
 
-        received_at_values = [
-            entry.get("received_at") for entry in data_id if entry.get("received_at")
-        ]
-        remaining = max(
-            0,
-            int(
-                COHORT_RESULT_WAIT_TIMEOUT.total_seconds()
-                - (
-                    (
-                        datetime.now(timezone.utc)
-                        - datetime.fromisoformat(min(received_at_values))
-                    ).total_seconds()
-                    if received_at_values
-                    else 0
-                )
-            ),
-        )
         logger.info(
-            "[CREATE_COHORT_RESULT] Waiting for more COEs — %d/%d responded, timeout in %ds",
+            "[CREATE_COHORT_RESULT] Waiting for more COEs — %d/%d responded",
             len(responded_coes),
             len(expected_coes) if expected_coes else "?",
-            remaining,
         )
-
-    def check_cohort_timeouts(self, db: Session) -> None:
-        """Background task: mark cohorts as PARTIALLY_EXECUTED if timeout elapsed without all COEs."""
-        cohorts_waiting = (
-            db.query(Cohort)
-            .join(CohortResult, CohortResult.cohort_id == Cohort.id)
-            .filter(Cohort.status == CohortStatus.CREATED.value)
-            .all()
-        )
-
-        now = datetime.now(timezone.utc)
-        for cohort in cohorts_waiting:
-            cohort_result = (
-                db.query(CohortResult)
-                .filter(CohortResult.cohort_id == cohort.id)
-                .first()
-            )
-            if not cohort_result or not cohort_result.data_id:
-                continue
-
-            received_at_values = [
-                entry.get("received_at")
-                for entry in cohort_result.data_id
-                if entry.get("received_at")
-            ]
-            if not received_at_values:
-                continue
-
-            first_received = datetime.fromisoformat(min(received_at_values))
-            elapsed = now - first_received
-            if elapsed < COHORT_RESULT_WAIT_TIMEOUT:
-                continue
-
-            expected_coes = self._get_expected_coes(db, cohort)
-            responded_coes = self._get_responded_coes(cohort_result.data_id)
-
-            if expected_coes and responded_coes >= expected_coes:
-                continue
-
-            missing = expected_coes - responded_coes
-            logger.info(
-                "[TIMEOUT_WATCHER] Cohort %s timed out after %ds — marking PARTIALLY_EXECUTED (missing: %s)",
-                cohort.id,
-                elapsed.seconds,
-                missing,
-            )
-            cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
-            db.add(cohort)
-
-        db.commit()
 
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
