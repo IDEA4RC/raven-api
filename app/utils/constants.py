@@ -50,18 +50,20 @@ API_BASE = "https://vantage6-core.orchestrator.idea.lst.tfo.upm.es/server"
 
 COLLABORATION_ID = 3
 
+CENTRAL_TASK_ORG_ID = 1
+
 ORGANIZATION_IDS = {1, 4, 5, 9}
 
 COE_TOKEN_ORG_MAP: dict[str, int] = {
-    "X7K2P9QR": 4,   # INT
-    "I3HY7LVN": 5,   # UKE
-    "D5RC1PLT": 9,   # OUS
-    "F8TG4YNK": 2,   # ENG
-    "E1XN3ZJY": 7,   # FPNS
-    "P3ZT9QKL": 8,   # VGR
+    "X7K2P9QR": 4,  # INT
+    "I3HY7LVN": 5,  # UKE
+    "D5RC1PLT": 9,  # OUS
+    "F8TG4YNK": 2,  # ENG
+    "E1XN3ZJY": 7,  # FPNS
+    "P3ZT9QKL": 8,  # VGR
     "V7NW4HBG": 10,  # MSCI
-    "J6LV5TQP": 6,   # CLB
-    "Q1RT5DCG": 1,   # UPM (root)
+    "J6LV5TQP": 6,  # CLB
+    "Q1RT5DCG": 1,  # UPM (root)
     "G1BK7WNH": 11,  # APHP
 }
 

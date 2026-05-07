@@ -23,12 +23,14 @@ def create_permit(
     *,
     db: Session = Depends(get_db),
     permit_in: schemas.PermitCreate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Creates a new permit for a workspace.
     """
-    permit = permit_service.create_with_history(db=db, obj_in=permit_in, user_id=current_user.id)
+    permit = permit_service.create_with_history(
+        db=db, obj_in=permit_in, user_id=current_user.id
+    )
     return permit
 
 
@@ -38,7 +40,7 @@ def get_permits(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all permits.
@@ -52,7 +54,7 @@ def get_permit(
     *,
     db: Session = Depends(get_db),
     permit_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains a permit by ID.
@@ -61,7 +63,7 @@ def get_permit(
     if not permit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Permit with ID {permit_id} not found"
+            detail=f"Permit with ID {permit_id} not found",
         )
     return permit
 
@@ -72,7 +74,7 @@ def update_permit(
     db: Session = Depends(get_db),
     permit_id: int,
     permit_in: schemas.PermitUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Updates a permit (PATCH operation).
@@ -82,7 +84,7 @@ def update_permit(
     if not permit_service.get(db=db, id=permit_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Permit with ID {permit_id} not found"
+            detail=f"Permit with ID {permit_id} not found",
         )
     try:
         permit = permit_service.update_with_history(
@@ -90,10 +92,7 @@ def update_permit(
         )
         return permit
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.delete("/{permit_id}", status_code=status.HTTP_200_OK)
@@ -101,7 +100,7 @@ def delete_permit(
     *,
     db: Session = Depends(get_db),
     permit_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """
     Deletes a permit.
@@ -112,10 +111,7 @@ def delete_permit(
         )
         return deleted_permit
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/workspace/{workspace_id}", response_model=List[schemas.Permit])
@@ -123,14 +119,12 @@ def get_permits_by_workspace(
     *,
     db: Session = Depends(get_db),
     workspace_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all permits for a workspace.
     """
-    permits = db.query(Permit)\
-        .filter(Permit.workspace_id == workspace_id)\
-        .all()
+    permits = db.query(Permit).filter(Permit.workspace_id == workspace_id).all()
     return permits
 
 
@@ -139,14 +133,12 @@ def get_permits_by_team(
     *,
     db: Session = Depends(get_db),
     team_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtains all permits for a team.
     """
-    permits = db.query(Permit)\
-        .filter(team_id == any_(Permit.team_ids))\
-        .all()
+    permits = db.query(Permit).filter(team_id == any_(Permit.team_ids)).all()
     return permits
 
 
@@ -156,22 +148,18 @@ def update_permit_status(
     db: Session = Depends(get_db),
     permit_id: int,
     permit_update: schemas.PermitUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Updates the status of a permit.
     """
-    permitStatus = PermitStatus.GRANTED
-    if permit_update.status is not None:
-        permitStatus = permit_update.status
+    if permit_update.status is None:
+        permit_update.status = PermitStatus.GRANTED
 
     try:
-        permit = permit_service.update_permit_status(
-            db=db, permit_id=permit_id, status=permitStatus, user_id=current_user.id
+        permit = permit_service.update_with_history(
+            db=db, permit_id=permit_id, obj_in=permit_update, user_id=current_user.id
         )
         return permit
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
