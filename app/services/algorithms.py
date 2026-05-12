@@ -127,7 +127,7 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             db=db, cohort_ids=cohort_ids
         )
 
-        return await Vantage6Service.update_algorithms_status_bulk_async(
+        return await service_vantage6.update_algorithms_status_bulk_async(
             db=db, algorithms=algorithms, access_token=access_token
         )
 
@@ -154,6 +154,46 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             )
         )
         return query.all()
+
+    def duplicate_summary_as_table_one(
+        self, db: Session, cohort_ids: list[int]
+    ) -> Algorithm:
+        """Duplicate the latest summary algorithm for the given cohort list as TABLE1."""
+
+        summary_algorithms = [
+            algorithm
+            for algorithm in self.get_algorithms_by_exact_cohort_list(db, cohort_ids)
+            if algorithm.method_name == ALGORITHMS.SUMMARY
+        ]
+
+        if not summary_algorithms:
+            raise ValueError("No summary algorithm found for the provided cohort IDs")
+
+        summary_algorithm = max(
+            summary_algorithms,
+            key=lambda algorithm: algorithm.creation_date or datetime.now(timezone.utc),
+        )
+
+        table_one_algorithm = Algorithm(
+            method_name=ALGORITHMS.TABLE1,
+            description="Table one analysis",
+            input=summary_algorithm.input,
+            output=summary_algorithm.output,
+            task_id=summary_algorithm.task_id,
+            status_task=summary_algorithm.status_task,
+            subtask_id=summary_algorithm.subtask_id,
+            status_subtask=summary_algorithm.status_subtask,
+            col_var=summary_algorithm.col_var,
+            row_var_list=summary_algorithm.row_var_list,
+            version_date=summary_algorithm.version_date or datetime.now(timezone.utc),
+        )
+        table_one_algorithm.cohorts = summary_algorithm.cohorts
+
+        db.add(table_one_algorithm)
+        db.commit()
+        db.refresh(table_one_algorithm)
+
+        return table_one_algorithm
 
     def are_ready_dataframes_cohort_list(
         self, db: Session, cohort_ids: list[int]

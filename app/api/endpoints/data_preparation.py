@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.services.vantage_6 import Vantage6Service
+from app.services.algorithms import algorithm_service
 from app import schemas
 import time
 import asyncio
@@ -288,6 +289,34 @@ def create_data_preparation_t_test(
             )
 
         return t_test_task
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/create_table_one",
+    response_model=schemas.V6TaskResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_table_one(
+    *,
+    db: Session = Depends(get_db),
+    data_preparation: schemas.DataPreparationRequest,
+    current_user: CurrentUserContext = Depends(get_current_user_with_token),
+) -> Any:
+    """
+    Duplicate a summary algorithm as a TABLE1 algorithm for the same cohort list.
+    """
+
+    try:
+        user = current_user.user
+
+        table_one_algorithm = algorithm_service.duplicate_summary_as_table_one(
+            db=db, cohort_ids=data_preparation.cohorts_ids
+        )
+
+        return schemas.V6TaskResult(task_id=table_one_algorithm.task_id, job_id=-1)
 
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

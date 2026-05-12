@@ -75,16 +75,21 @@ async def get_algorithms_by_cohorts(
     request: CohortListRequest,
     db: Session = Depends(get_db),
 ):
+    logger.info(
+        "[ALGORITHMS] POST to get_algorithms_by_cohorts with cohort_ids: %s",
+        request.cohort_ids,
+    )
     try:
 
-        algorithms = algorithm_service.get_algorithms_with_status_async(
+        algorithms = await algorithm_service.get_algorithms_with_status_async(
             db, request.cohort_ids, TOKEN_V6
         )
 
         return algorithms
     except Exception as e:
-
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(
+            status_code=500, detail="Internal server error, error: %s" % str(e)
+        )
 
 
 @router.post("/is_summary", response_model=List[schemas.algorithms.Algorithm])
