@@ -1514,6 +1514,7 @@ class Vantage6Service(
 
             return V6RunResult(
                 status=status_task,
+                logs=response_data["data"][0].get("log", ""),
             )
         except httpx.HTTPStatusError as exc:
             logger.error(

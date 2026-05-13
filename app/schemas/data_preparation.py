@@ -19,6 +19,7 @@ class V6GetStatus(BaseModel):
 
 class V6RunResult(BaseModel):
     status: str
+    logs: Optional[str] = None
 
 
 class V6DecodedResult(BaseModel):

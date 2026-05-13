@@ -275,12 +275,6 @@ class CohortResultService(
         if not cohort:
             logger.error("[CREATE_COHORT_RESULT] Cohort %s not found", obj_in.cohort_id)
             raise ValueError(f"Cohort with ID {obj_in.cohort_id} not found")
-        logger.info(
-            "[CREATE_COHORT_RESULT] Cohort found: id=%s status=%s workspace_id=%s",
-            cohort.id,
-            cohort.status,
-            cohort.workspace_id,
-        )
 
         if len(obj_in.data_id) != 1:
             logger.error(
@@ -300,9 +294,8 @@ class CohortResultService(
         center = COE_TOKEN_MAP.get(token)
         if center is None:
             logger.error(
-                "[CREATE_COHORT_RESULT] Unknown CoE token: '%s' | Known tokens: %s",
+                "[CREATE_COHORT_RESULT] Unknown CoE token: '%s'",
                 token,
-                list(COE_TOKEN_MAP.keys()),
             )
             raise ValueError(f"Unknown CoE token: {token}")
         expected_coes = self._get_expected_coes(db, cohort)
@@ -317,27 +310,26 @@ class CohortResultService(
             )
 
         # Reject if this token already submitted (prevents duplicates on re-execution)
-        existing_check = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
-        already_submitted = existing_check and any(
-            e.get("token") == token for e in (existing_check.data_id or [])
-        )
-        if already_submitted:
-            logger.warning(
-                "[CREATE_COHORT_RESULT] Token '%s' already submitted for cohort %s — rejecting duplicate",
-                token,
-                cohort.id,
-            )
-            raise ValueError(
-                f"Token '{token}' has already submitted results for this cohort"
-            )
+        # existing_check = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
+        # already_submitted = existing_check and any(
+        #     e.get("token") == token for e in (existing_check.data_id or [])
+        # )
+        # if already_submitted:
+        #     logger.warning(
+        #         "[CREATE_COHORT_RESULT] Token '%s' already submitted for cohort %s — rejecting duplicate",
+        #         token,
+        #         cohort.id,
+        #     )
+        #     raise ValueError(
+        #         f"Token '{token}' has already submitted results for this cohort"
+        #     )
 
         for i, e in enumerate(entries):
             logger.info(
-                "[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d sample=%s",
+                "[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d ",
                 i,
                 e.execution_date,
                 len(e.patient_ids),
-                e.patient_ids[:3],
             )
 
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -354,12 +346,17 @@ class CohortResultService(
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
         if existing:
             current = existing.data_id or []
+            filtered = [e for e in current if e.get("token") != token]
+
             logger.info(
-                "[CREATE_COHORT_RESULT] Appending to existing record id=%s (current entries=%d)",
+                "[CREATE_COHORT_RESULT] Replacing data for token '%s' in record id=%s",
+                token,
                 existing.id,
-                len(current),
             )
-            existing.data_id = current + new_executions
+
+            # upsert lógico: reemplazar por las nuevas ejecuciones
+            existing.data_id = filtered + new_executions
+
             db.add(existing)
             db.commit()
             db.refresh(existing)
@@ -371,6 +368,35 @@ class CohortResultService(
             db.commit()
             db.refresh(db_obj)
 
+        total_entries = len(db_obj.data_id or [])
+
+        if total_entries == 0:
+            #  no ha llegado nada válido → seguimos en RUNNING
+            logger.info("[STATUS] No valid data yet → keeping RUNNING")
+            cohort.status = CohortStatus.RUNNING.value
+
+        else:
+            expected_coes = self._get_expected_coes(db, cohort)
+
+            tokens_present = {e["token"] for e in db_obj.data_id}
+
+            logger.info(
+                "[CREATE_COHORT_RESULT] Total entries for cohort_id=%s: %d | Expected CoEs: %s | Tokens present: %s",
+                obj_in.cohort_id,
+                total_entries,
+                expected_coes,
+                tokens_present,
+            )
+
+            if expected_coes and len(tokens_present) >= len(expected_coes):
+                logger.info("[STATUS] All expected CoEs responded → COMPLETED")
+                cohort.status = CohortStatus.EXECUTED.value
+            else:
+                logger.info("[STATUS] Partial data received → PARTIAL")
+                cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
+
+        db.add(cohort)
+        db.commit()
         logger.info(
             "[CREATE_COHORT_RESULT] Saved OK cohort_id=%s token=%s executions=%d total_stored=%d",
             obj_in.cohort_id,
@@ -378,15 +404,11 @@ class CohortResultService(
             len(new_executions),
             len(db_obj.data_id),
         )
-
-        cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
-        db.add(cohort)
-        db.commit()
         self._maybe_create_dataframe(
             db, cohort=cohort, data_id=db_obj.data_id, access_token=access_token
         )
-
         logger.info("[CREATE_COHORT_RESULT] END OK cohort_id=%s", obj_in.cohort_id)
+
         return db_obj
 
     def update_cohort_result(
