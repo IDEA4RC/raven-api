@@ -126,6 +126,11 @@ class CohortResultService(
             all_ids = existing + entry.get("patient_ids", [])
             org_patient_ids[org_id] = list(dict.fromkeys(all_ids))
 
+        logger.info(
+            "[COLLECT_PATIENT_IDS_BY_ORG] For cohort_id=%s collected patient IDs by org: %s",
+            cohort_id,
+            {org_id: len(ids) for org_id, ids in org_patient_ids.items()},
+        )
         return org_patient_ids
 
     def _update_cohort_execution_and_v6(

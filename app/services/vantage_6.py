@@ -894,6 +894,8 @@ class Vantage6Service(
             session_id=session_id if study_id is None else None,
         )
 
+        logger.info("[V6] Retrieved organization IDs for cohort creation: %s", org_ids)
+
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
@@ -903,7 +905,14 @@ class Vantage6Service(
 
         # Only include orgs that are both in the study (org_ids) and have patient data
         orgs_to_include = [oid for oid in org_ids if oid in patient_ids_by_org]
+        logger.info("[V6] Orgs Retrieved: %s", patient_ids_by_org)
 
+        logger.info("[V6] features: %s", features)
+        logger.info(
+            "[V6] Orgs to include in cohort creation for session_id=%s: %s",
+            session_id,
+            orgs_to_include,
+        )
         payload = {
             "label": LABEL,
             "task": {

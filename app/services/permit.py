@@ -99,6 +99,10 @@ class PermitService(BaseService[Permit, PermitCreate, PermitUpdate]):
             db.query(Workspace).filter(Workspace.id == permit.workspace_id).first()
         )
 
+        logger.info(
+            f"[PERMIT] Permit status update - permit_id: {permit_id}, new status: {status}, workspace before update: {workspace}"
+        )
+
         if workspace:
             workspaceStatus = workspace.status
         else:
