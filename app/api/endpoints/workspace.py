@@ -25,20 +25,20 @@ from app.utils.constants import TOKEN_V6
 router = APIRouter()
 
 
-@router.post("/", response_model=schemas.Workspace, status_code=status.HTTP_201_CREATED)
-def create_workspace(
-    *,
-    db: Session = Depends(get_db),
-    workspace_in: schemas.WorkspaceCreate,
-    current_user: User = Depends(get_current_user),
-) -> Any:
-    """
-    Creates a new workspace.
-    """
-    workspace = workspace_service.create_with_history(
-        db=db, obj_in=workspace_in, user_id=current_user.id
-    )
-    return workspace
+# @router.post("/", response_model=schemas.Workspace, status_code=status.HTTP_201_CREATED)
+# def create_workspace(
+#     *,
+#     db: Session = Depends(get_db),
+#     workspace_in: schemas.WorkspaceCreate,
+#     current_user: User = Depends(get_current_user),
+# ) -> Any:
+#     """
+#     Creates a new workspace.
+#     """
+#     workspace = workspace_service.create_with_history(
+#         db=db, obj_in=workspace_in, user_id=current_user.id
+#     )
+#     return workspace
 
 
 @router.post(

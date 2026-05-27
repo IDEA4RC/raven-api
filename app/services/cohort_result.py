@@ -167,6 +167,8 @@ class CohortResultService(
         features = metadata.type_cancer
         if features == "H&N":
             features = typeOfDiseases.HAndN.value
+        elif features.lower() == "sarc":
+            features = typeOfDiseases.SARCOMA.value
 
         patient_ids_by_org = self._collect_patient_ids_by_org(db, cohort_id=cohort.id)
         logger.info(
@@ -189,14 +191,15 @@ class CohortResultService(
         workspace = (
             db.query(Workspace).filter(Workspace.id == cohort.workspace_id).first()
         )
-        study_id = workspace.v6_study_id if workspace else None
+        # study_id = workspace.v6_study_id if workspace else None
 
         createDataFrameResponse = vantage6_service.create_new_cohort(
+            db=db,
             access_token=access_token,
             session_id=analysis.session_id_vantage,
             features=features,
             patient_ids_by_org=patient_ids_by_org,
-            study_id=study_id,
+            workspace_id=workspace.id,
         )
 
         if createDataFrameResponse.dataframe_id in (None, -1):

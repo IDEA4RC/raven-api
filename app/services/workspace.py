@@ -20,54 +20,54 @@ class WorkspaceService(BaseService[Workspace, WorkspaceCreate, WorkspaceUpdate])
     Service for handling workspace operations
     """
 
+    # def create_with_history(
+    #     self, db: Session, *, obj_in: WorkspaceCreate, user_id: int
+    # ) -> Workspace:
+    #     """
+    #     Create a new workspace and log the event in the workspace history
+    #     """
+    #     # Crear workspace
+    #     obj_in_data = obj_in.model_dump()
+    #     db_obj = Workspace(**obj_in_data)
+    #     db_obj.creator_id = user_id
+    #     db.add(db_obj)
+    #     db.flush()  # Para obtener el ID sin hacer commit
+
+    #     # Crear historial
+    #     workspace_history = WorkspaceHistory(
+    #         date=datetime.now(timezone.utc),
+    #         action="Created workspace",
+    #         phase="Data permit",
+    #         description="Workspace created successfully",
+    #         workspace_id=db_obj.id,
+    #         creator_id=user_id,
+    #     )
+    #     db.add(workspace_history)
+
+    #     # Crear registro de permiso inicial (estado pendiente)
+    #     permit = Permit(
+    #         status=PermitStatus.PENDING,  # 0 = Pending
+    #         update_date=datetime.now(timezone.utc),
+    #         workspace_id=db_obj.id,
+    #         team_ids=db_obj.team_ids or [],
+    #     )
+    #     db.add(permit)
+
+    #     permit_workspace_history = WorkspaceHistory(
+    #         date=datetime.now(timezone.utc),
+    #         action="Initial permit created",
+    #         phase="Data Permit",
+    #         description="Initial permit created with status Pending",
+    #         creator_id=user_id,
+    #         workspace_id=db_obj.id,
+    #     )
+    #     db.add(permit_workspace_history)
+
+    #     db.commit()
+    #     db.refresh(db_obj)
+    #     return db_obj
+
     def create_with_history(
-        self, db: Session, *, obj_in: WorkspaceCreate, user_id: int
-    ) -> Workspace:
-        """
-        Create a new workspace and log the event in the workspace history
-        """
-        # Crear workspace
-        obj_in_data = obj_in.model_dump()
-        db_obj = Workspace(**obj_in_data)
-        db_obj.creator_id = user_id
-        db.add(db_obj)
-        db.flush()  # Para obtener el ID sin hacer commit
-
-        # Crear historial
-        workspace_history = WorkspaceHistory(
-            date=datetime.now(timezone.utc),
-            action="Created workspace",
-            phase="Data permit",
-            description="Workspace created successfully",
-            workspace_id=db_obj.id,
-            creator_id=user_id,
-        )
-        db.add(workspace_history)
-
-        # Crear registro de permiso inicial (estado pendiente)
-        permit = Permit(
-            status=PermitStatus.PENDING,  # 0 = Pending
-            update_date=datetime.now(timezone.utc),
-            workspace_id=db_obj.id,
-            team_ids=db_obj.team_ids or [],
-        )
-        db.add(permit)
-
-        permit_workspace_history = WorkspaceHistory(
-            date=datetime.now(timezone.utc),
-            action="Initial permit created",
-            phase="Data Permit",
-            description="Initial permit created with status Pending",
-            creator_id=user_id,
-            workspace_id=db_obj.id,
-        )
-        db.add(permit_workspace_history)
-
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
-
-    def create_with_history_v2(
         self,
         db: Session,
         *,

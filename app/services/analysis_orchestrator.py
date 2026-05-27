@@ -29,6 +29,7 @@ class AnalysisOrchestratorService:
             v6_study_id = vantage6_service.register_workspace(
                 workspace_name=workspace_in.name,
                 access_token=access_token,
+                selected_coes=workspace_in.selected_id_coes,
             )
 
         except RuntimeError as e:
@@ -38,9 +39,9 @@ class AnalysisOrchestratorService:
             )
 
         workspace_in.v6_study_id = v6_study_id
-        logger.info("[API] Calling workspace_service.create_with_history_v2")
+        logger.info("[API] Calling workspace_service.create_with_history")
 
-        workspace = workspace_service.create_with_history_v2(
+        workspace = workspace_service.create_with_history(
             db=db, obj_in=workspace_in, user_id=user_id
         )
 

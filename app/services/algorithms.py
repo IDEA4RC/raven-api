@@ -24,7 +24,8 @@ from app.models.cohort_algorithm import CohortAlgorithm
 from app.services.base import BaseService
 from app.models.cohort import Cohort
 from app.services.cohort import CohortService
-from app.utils.constants import ALGORITHMS, TOKEN_V6
+from app.utils.constants import ALGORITHMS
+from sqlalchemy.orm import joinedload
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -81,11 +82,6 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
         self, db: Session, cohort_ids: list[int]
     ) -> List[Algorithm]:
 
-        logger.info(
-            "[ALGORITHMS] GET to get_algorithms_by_exact_cohort_list with cohort_ids: %s",
-            cohort_ids,
-        )
-        # Subquery: contar cohort_ids por algoritmo
         subq = (
             db.query(
                 CohortAlgorithm.algorithm_id,
@@ -95,7 +91,12 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             .subquery()
         )
 
-        # Subquery: contar cuántos de los cohort_ids pasados están presentes
+        logger.info(
+            "[ALGORITHMS] GET to get_algorithms_by_exact_cohort_list with cohort_ids: %s and subquery: %s",
+            cohort_ids,
+            subq,
+        )
+
         match_count_subq = (
             db.query(
                 CohortAlgorithm.algorithm_id,
@@ -106,18 +107,64 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
             .subquery()
         )
 
-        # Unimos las subqueries con Algorithm y filtramos por exact match
         query = (
             db.query(Algorithm)
+            .options(joinedload(Algorithm.cohorts))
             .join(subq, Algorithm.id == subq.c.algorithm_id)
             .join(match_count_subq, Algorithm.id == match_count_subq.c.algorithm_id)
             .filter(subq.c.total_cohorts == len(cohort_ids))
             .filter(match_count_subq.c.match_count == len(cohort_ids))
+            .distinct()  # 🔥 FIX DUPLICADOS
         )
 
-        algorithms = query.all()
+        logger.info(
+            "[ALGORITHMS] Query for get_algorithms_by_exact_cohort_list: %s",
+            query,
+        )
 
-        return algorithms
+        return query.all()
+
+    # def get_algorithms_by_exact_cohort_list(
+    #     self, db: Session, cohort_ids: list[int]
+    # ) -> List[Algorithm]:
+
+    #     logger.info(
+    #         "[ALGORITHMS] GET to get_algorithms_by_exact_cohort_list with cohort_ids: %s",
+    #         cohort_ids,
+    #     )
+    #     # Subquery: contar cohort_ids por algoritmo
+    #     subq = (
+    #         db.query(
+    #             CohortAlgorithm.algorithm_id,
+    #             func.count(CohortAlgorithm.cohort_id).label("total_cohorts"),
+    #         )
+    #         .group_by(CohortAlgorithm.algorithm_id)
+    #         .subquery()
+    #     )
+
+    #     # Subquery: contar cuántos de los cohort_ids pasados están presentes
+    #     match_count_subq = (
+    #         db.query(
+    #             CohortAlgorithm.algorithm_id,
+    #             func.count(CohortAlgorithm.cohort_id).label("match_count"),
+    #         )
+    #         .filter(CohortAlgorithm.cohort_id.in_(cohort_ids))
+    #         .group_by(CohortAlgorithm.algorithm_id)
+    #         .subquery()
+    #     )
+
+    #     # Unimos las subqueries con Algorithm y filtramos por exact match
+    #     query = (
+    #         db.query(Algorithm)
+    #         .join(subq, Algorithm.id == subq.c.algorithm_id)
+    #         .join(match_count_subq, Algorithm.id == match_count_subq.c.algorithm_id)
+    #         .filter(subq.c.total_cohorts == len(cohort_ids))
+    #         .filter(match_count_subq.c.match_count == len(cohort_ids))
+    #     )
+
+    #     algorithms = query.all()
+
+    #     return algorithms
 
     async def get_algorithms_with_status_async(
         self, db: Session, cohort_ids: list[int], access_token: str
@@ -125,6 +172,12 @@ class AlgorithmService(BaseService[Algorithm, AlgorithmCreate, AlgorithmUpdate])
 
         algorithms = self.get_algorithms_by_exact_cohort_list(
             db=db, cohort_ids=cohort_ids
+        )
+
+        logger.info(
+            "[ALGORITHMS] GET to get_algorithms_with_status_async with cohort_ids: %s, algorithms found: %s",
+            cohort_ids,
+            algorithms,
         )
 
         return await service_vantage6.update_algorithms_status_bulk_async(

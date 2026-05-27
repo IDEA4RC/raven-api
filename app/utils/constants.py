@@ -53,7 +53,7 @@ COLLABORATION_ID = 3
 
 CENTRAL_TASK_ORG_ID = 1
 
-ORGANIZATION_IDS = {1, 4, 5, 9, 7, 11}
+ORGANIZATION_IDS = {1, 4, 5, 7, 6}
 
 COE_TOKEN_ORG_MAP: dict[str, int] = {
     "X7K2P9QR": 4,  # INT
@@ -96,11 +96,24 @@ COE_TOKEN_MAP: dict[str, str] = {
     "I3HY7LVN": "UKE",
 }
 
+COE_CODE_ORG_ID_MAP: dict[str, int] = {
+    "INT": 4,
+    "UKE": 5,
+    "OUS": 9,
+    "ENG": 2,
+    "FPNS": 7,
+    "VGR": 8,
+    "MSCI": 10,
+    "CLB": 6,
+    "UPM": 1,
+    "APHP": 11,
+}
+
 
 class typeOfDiseases(Enum):
     """Tipos de enfermedades"""
 
-    SARCOMA = "sarc"
+    SARCOMA = "sarcoma"
     HAndN = "head_and_neck"
 
 

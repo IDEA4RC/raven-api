@@ -58,6 +58,7 @@ class BasicArithmeticRequest(BaseModel):
     column2: Union[str, int]
     operation: str
     output_column: str
+    analysis_id: int
 
 
 class MergeCategoriesRequest(BaseModel):
@@ -65,18 +66,21 @@ class MergeCategoriesRequest(BaseModel):
     column: str
     output_column: str
     mapping: Dict[str, List[str]]
+    analysis_id: int
 
 
 class TimedeltaRequest(BaseModel):
     dataframe_id: int
     column: str
     output_column: str
+    analysis_id: int
 
 
 class OneHotEncodingRequest(BaseModel):
     dataframe_id: int
     column: str
     prefix: str
+    analysis_id: int
 
 
 class KaplanMeierRequest(BaseModel):
@@ -102,6 +106,7 @@ class MergeVariablesRequest(BaseModel):
     column1: str
     column2: str
     output_column: str
+    analysis_id: int
 
 
 class V6CreateDataFrame(BaseModel):
@@ -119,7 +124,7 @@ class CoxPHRequest(BaseModel):
 
 
 class ToBooleanRequest(BaseModel):
-    dataframe_id: int
     column: str
     output_column: str
     true_values: List[str]
+    analysis_id: int
