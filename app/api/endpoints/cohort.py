@@ -18,6 +18,7 @@ from app.services.cohort import CohortService
 
 router = APIRouter()
 from app.utils.constants import TOKEN_V6
+from app.utils.metrics_logger import log_event
 
 # Initialize the cohort service
 cohort_service = CohortService(Cohort)
@@ -218,6 +219,12 @@ def create_cohort(
 
         cohort = cohort_service.create_with_history_v2(
             db=db, obj_in=cohort_in, user_id=user.id  # , access_token=TOKEN_V6
+        )
+        log_event(
+            "cohort", "execute",
+            user_id=str(user.id),
+            cohort_id=cohort.id,
+            workspace_id=cohort.workspace_id,
         )
         return cohort
     except ValueError as e:

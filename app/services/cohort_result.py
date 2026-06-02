@@ -26,6 +26,7 @@ from app.utils.constants import (
     COE_TOKEN_ORG_MAP,
     PermitStatus,
 )
+from app.utils.metrics_logger import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +341,8 @@ class CohortResultService(
                 len(e.patient_ids),
             )
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_utc = datetime.now(timezone.utc)
+        now_iso = now_utc.isoformat()
         new_executions = [
             {
                 "token": token,
@@ -350,6 +352,14 @@ class CohortResultService(
             }
             for e in entries
         ]
+
+        total_patients = sum(len(e.patient_ids) for e in entries)
+        log_event(
+            "coe_result", "received",
+            center=center,
+            cohort_id=obj_in.cohort_id,
+            cohort_size=total_patients,
+        )
 
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
         if existing:
@@ -399,9 +409,19 @@ class CohortResultService(
             if expected_coes and len(tokens_present) >= len(expected_coes):
                 logger.info("[STATUS] All expected CoEs responded → COMPLETED")
                 cohort.status = CohortStatus.EXECUTED.value
+                log_event(
+                    "cohort", "status_change",
+                    cohort_id=obj_in.cohort_id,
+                    message="EXECUTED — all COEs responded",
+                )
             else:
                 logger.info("[STATUS] Partial data received → PARTIAL")
                 cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
+                log_event(
+                    "cohort", "status_change",
+                    cohort_id=obj_in.cohort_id,
+                    message=f"PARTIALLY_EXECUTED — {len(tokens_present)}/{len(expected_coes)} COEs responded",
+                )
 
         db.add(cohort)
         db.commit()

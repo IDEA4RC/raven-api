@@ -17,6 +17,7 @@ from app.api.endpoints import (
     cohort_result,
     data_preparation,
     metadata_search,
+    metrics,
 )
 
 api_router = APIRouter()
@@ -74,4 +75,8 @@ api_router.include_router(
 
 api_router.include_router(
     algorithms.router, prefix="/algorithms", tags=["Algorithms endpoint"]
+)
+
+api_router.include_router(
+    metrics.router, prefix="/metrics", tags=["Metrics endpoint"]
 )

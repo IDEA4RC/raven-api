@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URI: str = "postgresql://raven_user:raven_password@localhost:5432/raven_db"
+    METRICS_DB_URL: Optional[str] = None
     
     # JWT
     # IMPORTANT: Provide via environment in production

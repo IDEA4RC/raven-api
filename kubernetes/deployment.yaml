@@ -136,6 +136,11 @@ spec:
             configMapKeyRef:
               name: raven-api-config
               key: KEYCLOAK_CLIENT_ID
+        - name: METRICS_DB_URL
+          valueFrom:
+            configMapKeyRef:
+              name: raven-api-config
+              key: METRICS_DB_URL
         readinessProbe:
           httpGet:
             path: /raven-api/v1/health/

@@ -13,6 +13,7 @@ from prometheus_client import make_asgi_app
 from app.api.routes import api_router
 from app.config.settings import settings
 from app.utils.telemetry import setup_telemetry
+from app.utils.metrics_logger import create_metrics_tables, log_event
 
 import logging
 import sys
@@ -20,6 +21,7 @@ import sys
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    create_metrics_tables()
     yield
 
 
@@ -70,19 +72,25 @@ if cors_origins:
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     response = await call_next(request)
-    
-    # Log in JSON format for easier processing
-    log_data = {
-        "request_path": request.url.path,
-        "request_method": request.method,
-        "status_code": response.status_code,
-        "client_host": request.client.host if request.client else None,
-    }
-    
-    # Only print in JSON format for production environments
+
     if settings.ENVIRONMENT != "development":
+        log_data = {
+            "request_path": request.url.path,
+            "request_method": request.method,
+            "status_code": response.status_code,
+            "client_host": request.client.host if request.client else None,
+        }
         print(json.dumps(log_data))
-    
+
+    # Log algorithm launches from data-preparation endpoints
+    if (
+        request.method == "POST"
+        and response.status_code == 201
+        and "/data-preparation/create_" in request.url.path
+    ):
+        algorithm_type = request.url.path.split("/data-preparation/create_")[-1]
+        log_event("algorithm", "launch", algorithm_type=algorithm_type)
+
     return response
 
 # Include API routes

@@ -21,6 +21,7 @@ from app.services.analysis import analysis_service
 from app.services.analysis_orchestrator import workspace_orchestrator_service
 from app.models.analysis import Analysis
 from app.utils.constants import TOKEN_V6
+from app.utils.metrics_logger import log_event
 
 router = APIRouter()
 
@@ -79,6 +80,11 @@ def get_workspace(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Workspace with ID {workspace_id} not found",
         )
+    log_event(
+        "workspace", "access",
+        user_id=str(current_user.id),
+        workspace_id=workspace_id,
+    )
     return workspace
 
 

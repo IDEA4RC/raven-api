@@ -14,6 +14,7 @@ from app.models.user import User
 from app.models.permit import Permit
 from app.services.permit import permit_service
 from app.utils.constants import PermitStatus
+from app.utils.metrics_logger import log_event
 
 router = APIRouter()
 
@@ -90,6 +91,13 @@ def update_permit(
         permit = permit_service.update_with_history(
             db=db, permit_id=permit_id, obj_in=permit_in, user_id=current_user.id
         )
+        if permit_in.status is not None:
+            action = "grant" if permit_in.status == PermitStatus.GRANTED else "deny"
+            log_event(
+                "permit", action,
+                user_id=str(current_user.id),
+                workspace_id=permit.workspace_id,
+            )
         return permit
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -159,6 +167,12 @@ def update_permit_status(
     try:
         permit = permit_service.update_with_history(
             db=db, permit_id=permit_id, obj_in=permit_update, user_id=current_user.id
+        )
+        action = "grant" if permit_update.status == PermitStatus.GRANTED else "deny"
+        log_event(
+            "permit", action,
+            user_id=str(current_user.id),
+            workspace_id=permit.workspace_id,
         )
         return permit
     except ValueError as e:

@@ -15,6 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.models.organization import Organization
 from app.models.user_type import UserType
+from app.utils.metrics_logger import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ def login(
             db.add(user)
             db.commit()
             db.refresh(user)
+            log_event("auth", "login", user_id=form_data.username, center=org_name)
             result["keycloak_id"] = keycloak_id
         else:
             # User exists, check if any information needs to be updated
@@ -155,6 +157,7 @@ def login(
                 db.commit()
                 db.refresh(user)
 
+            log_event("auth", "login", user_id=form_data.username, center=org_name)
             result["keycloak_id"] = keycloak_id
 
         return result
@@ -199,6 +202,7 @@ def logout(refresh_token: str, db: Session = Depends(get_db)) -> None:
     """
     try:
         auth_service.logout(refresh_token)
+        log_event("auth", "logout")
     except HTTPException as e:
         raise e
     except Exception as e:

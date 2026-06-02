@@ -20,3 +20,4 @@ data:
   KEYCLOAK_SERVER_URL: "https://idea4rc-keykloak.development-iti.com"
   KEYCLOAK_REALM: "idea4rc"
   KEYCLOAK_CLIENT_ID: "raven"
+  METRICS_DB_URL: "postgresql://metrics_user:metrics_password@metrics-postgres-service:5432/metrics_db"
