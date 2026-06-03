@@ -113,7 +113,7 @@ def login(
             db.add(user)
             db.commit()
             db.refresh(user)
-            log_event("auth", "login", user_id=form_data.username, center=org_name)
+            log_event("auth", "login", user_id=str(user.id), center=org_name)
             result["keycloak_id"] = keycloak_id
         else:
             # User exists, check if any information needs to be updated
@@ -157,7 +157,7 @@ def login(
                 db.commit()
                 db.refresh(user)
 
-            log_event("auth", "login", user_id=form_data.username, center=org_name)
+            log_event("auth", "login", user_id=str(user.id), center=org_name)
             result["keycloak_id"] = keycloak_id
 
         return result

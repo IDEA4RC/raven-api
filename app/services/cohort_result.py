@@ -307,6 +307,13 @@ class CohortResultService(
                 token,
             )
             raise ValueError(f"Unknown CoE token: {token}")
+
+        metadata = (
+            db.query(MetadataSearch)
+            .filter(MetadataSearch.workspace_id == cohort.workspace_id)
+            .first()
+        )
+        disease_type = metadata.type_cancer if metadata else None
         expected_coes = self._get_expected_coes(db, cohort)
         if expected_coes and center not in expected_coes:
             logger.warning(
@@ -359,6 +366,8 @@ class CohortResultService(
             center=center,
             cohort_id=obj_in.cohort_id,
             cohort_size=total_patients,
+            workspace_id=cohort.workspace_id,
+            disease_type=disease_type,
         )
 
         existing = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
@@ -412,6 +421,8 @@ class CohortResultService(
                 log_event(
                     "cohort", "status_change",
                     cohort_id=obj_in.cohort_id,
+                    workspace_id=cohort.workspace_id,
+                    disease_type=disease_type,
                     message="EXECUTED — all COEs responded",
                 )
             else:
@@ -420,6 +431,8 @@ class CohortResultService(
                 log_event(
                     "cohort", "status_change",
                     cohort_id=obj_in.cohort_id,
+                    workspace_id=cohort.workspace_id,
+                    disease_type=disease_type,
                     message=f"PARTIALLY_EXECUTED — {len(tokens_present)}/{len(expected_coes)} COEs responded",
                 )
 
