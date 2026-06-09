@@ -282,21 +282,49 @@ class Vantage6Service(
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.get(
                     f"{self.base_url}/node",
-                    params={"collaboration_id": collaboration_id},
+                    params={"collaboration_id": collaboration_id, "per_page": 25},
                     headers=headers,
                 )
                 response.raise_for_status()
                 nodes = response.json().get("data", [])
-                online_ids = {
+                online_from_nodes = {
                     node["organization"]["id"]
                     for node in nodes
                     if node.get("status") == "online"
                 }
+
+                orgs_with_nodes = {node["organization"]["id"] for node in nodes}
+
                 logger.info(
                     "[V6_get_online_organization_ids] Online organization IDs: %s",
-                    online_ids,
+                    online_from_nodes,
                 )
-                return online_ids
+
+                response = client.get(
+                    f"{self.base_url}/organization",
+                    params={"collaboration_id": collaboration_id},
+                    headers=headers,
+                )
+                response.raise_for_status()
+                payload = response.json()
+
+                organizations = {
+                    org["id"]: org["name"] for org in payload.get("data", [])
+                }
+
+                org_ids = set(organizations.keys())
+
+                orgs_without_nodes = org_ids - orgs_with_nodes
+                final_ids = online_from_nodes | orgs_without_nodes
+
+                logger.info(
+                    "[V6_get_online_organization_ids] orgs_with_nodes=%s | orgs_without_nodes=%s | final=%s",
+                    orgs_with_nodes,
+                    orgs_without_nodes,
+                    final_ids,
+                )
+
+                return final_ids
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6_get_online_organization_ids] Node lookup failed (%s): %s",
@@ -341,6 +369,14 @@ class Vantage6Service(
                 organizations = {
                     org["id"]: org["name"] for org in payload.get("data", [])
                 }
+
+            logger.info(
+                "[V6_get_organizations] All organizations: %s after API fetch %s",
+                organizations,
+                "%s/organization?collaboration_id=%s",
+                self.base_url,
+                collaboration_id,
+            )
 
             online_ids = self._get_online_organization_ids(
                 access_token=access_token,
@@ -887,7 +923,7 @@ class Vantage6Service(
 
         logger.info("[V6] Retrieved organization IDs for cohort creation: %s", org_ids)
 
-        logger.info("[V6] Patients IDs for cohort creation: %s", patient_ids_by_org)
+        # logger.info("[V6] Patients IDs for cohort creation: %s", patient_ids_by_org)
 
         headers = {
             "Authorization": f"Bearer {access_token}",

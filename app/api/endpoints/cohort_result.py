@@ -2,10 +2,11 @@
 Endpoints for cohort result operations
 """
 
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 from app.models.cohort import Cohort
+from app.schemas.cohort_result import CohortResult
 from app.services.cohort import CohortService
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Path
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -26,13 +27,16 @@ cohort_service = CohortService(Cohort)
     "/",
     response_model=schemas.cohort_result.CohortResult,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        204: {"description": "Request accepted but ignored (unauthorized center)"}
+    },
 )
 def create_cohort_result(
     *,
     db: Session = Depends(get_db),
     cohort_result_in: schemas.cohort_result.CohortResultCreate,
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
-) -> Any:
+) -> Optional[CohortResult]:
     """
     Creates a new cohort result.
     """
@@ -44,6 +48,10 @@ def create_cohort_result(
             obj_in=cohort_result_in,
             access_token=access_token,
         )
+
+        if cohort_result is None:
+            return Response(status_code=204)
+
         return cohort_result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

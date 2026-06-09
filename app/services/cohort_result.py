@@ -275,10 +275,10 @@ class CohortResultService(
 
     def create_for_cohort(
         self, db: Session, *, obj_in: CohortResultCreate, access_token: str
-    ) -> CohortResult:
-        logger.info(
-            "[CREATE_COHORT_RESULT] START - full payload: %s", obj_in.model_dump()
-        )
+    ) -> Optional[CohortResult]:
+        # logger.info(
+        #     "[CREATE_COHORT_RESULT] START - full payload: %s", obj_in.model_dump()
+        # )
 
         cohort = db.query(Cohort).filter(Cohort.id == obj_in.cohort_id).first()
         if not cohort:
@@ -286,19 +286,19 @@ class CohortResultService(
             raise ValueError(f"Cohort with ID {obj_in.cohort_id} not found")
 
         if len(obj_in.data_id) != 1:
-            logger.error(
-                "[CREATE_COHORT_RESULT] data_id has %d keys, expected 1: %s",
-                len(obj_in.data_id),
-                list(obj_in.data_id.keys()),
-            )
+            # logger.error(
+            #     "[CREATE_COHORT_RESULT] data_id has %d keys, expected 1: %s",
+            #     len(obj_in.data_id),
+            #     list(obj_in.data_id.keys()),
+            # )
             raise ValueError("data_id must contain exactly one CoE token key")
 
         token, entries = next(iter(obj_in.data_id.items()))
-        logger.info(
-            "[CREATE_COHORT_RESULT] Token received: %s | entries count: %d",
-            token,
-            len(entries),
-        )
+        # logger.info(
+        #     "[CREATE_COHORT_RESULT] Token received: %s | entries count: %d",
+        #     token,
+        #     len(entries),
+        # )
 
         center = COE_TOKEN_MAP.get(token)
         if center is None:
@@ -321,9 +321,16 @@ class CohortResultService(
                 center,
                 expected_coes,
             )
-            raise ValueError(
-                f"Center '{center}' is not authorized to send results for this cohort"
+
+            log_event(
+                "coe_result",
+                "ignored",
+                center=center,
+                cohort_id=obj_in.cohort_id,
+                workspace_id=cohort.workspace_id,
             )
+
+            return None
 
         # Reject if this token already submitted (prevents duplicates on re-execution)
         # existing_check = self.get_by_cohort_last(db, cohort_id=obj_in.cohort_id)
@@ -340,13 +347,13 @@ class CohortResultService(
         #         f"Token '{token}' has already submitted results for this cohort"
         #     )
 
-        for i, e in enumerate(entries):
-            logger.info(
-                "[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d ",
-                i,
-                e.execution_date,
-                len(e.patient_ids),
-            )
+        # for i, e in enumerate(entries):
+        #     logger.info(
+        #         "[CREATE_COHORT_RESULT] Entry[%d] execution_date=%s patient_ids count=%d ",
+        #         i,
+        #         e.execution_date,
+        #         len(e.patient_ids),
+        #     )
 
         now_utc = datetime.now(timezone.utc)
         now_iso = now_utc.isoformat()
@@ -362,7 +369,8 @@ class CohortResultService(
 
         total_patients = sum(len(e.patient_ids) for e in entries)
         log_event(
-            "coe_result", "received",
+            "coe_result",
+            "received",
             center=center,
             cohort_id=obj_in.cohort_id,
             cohort_size=total_patients,
@@ -403,7 +411,6 @@ class CohortResultService(
             cohort.status = CohortStatus.RUNNING.value
 
         else:
-            expected_coes = self._get_expected_coes(db, cohort)
 
             tokens_present = {e["token"] for e in db_obj.data_id}
 
@@ -419,21 +426,25 @@ class CohortResultService(
                 logger.info("[STATUS] All expected CoEs responded → COMPLETED")
                 cohort.status = CohortStatus.EXECUTED.value
                 log_event(
-                    "cohort", "status_change",
+                    "cohort",
+                    "status_change",
                     cohort_id=obj_in.cohort_id,
                     workspace_id=cohort.workspace_id,
                     disease_type=disease_type,
                     message="EXECUTED — all COEs responded",
                 )
             else:
+                expected_count = len(expected_coes) if expected_coes else 0
+
                 logger.info("[STATUS] Partial data received → PARTIAL")
                 cohort.status = CohortStatus.PARTIALLY_EXECUTED.value
                 log_event(
-                    "cohort", "status_change",
+                    "cohort",
+                    "status_change",
                     cohort_id=obj_in.cohort_id,
                     workspace_id=cohort.workspace_id,
                     disease_type=disease_type,
-                    message=f"PARTIALLY_EXECUTED — {len(tokens_present)}/{len(expected_coes)} COEs responded",
+                    message=f"PARTIALLY_EXECUTED — {len(tokens_present)}/{len(expected_count)} COEs responded",
                 )
 
         db.add(cohort)
