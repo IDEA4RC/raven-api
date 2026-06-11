@@ -2673,6 +2673,21 @@ class Vantage6Service(
             "output_column": timedelta_in.output_column,
         }
 
+        if timedelta_in.to_date_column:
+            arguments["to_date_column"] = timedelta_in.to_date_column
+        elif timedelta_in.to_date:
+            try:
+                datetime.strptime(timedelta_in.to_date, "%Y-%m-%d")
+            except ValueError:
+                raise httpx.HTTPStatusError(
+                    status_code=400, detail="to_date must be in format YYYY-MM-DD"
+                )
+            arguments["to_date"] = timedelta_in.to_date
+
+        # logger.info(
+        #     "[V6] Running timedelta with arguments=%s", json.dumps(arguments, indent=2)
+        # )
+
         results = []
 
         try:

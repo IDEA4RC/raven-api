@@ -629,9 +629,17 @@ def create_timedelta(
     current_user: CurrentUserContext = Depends(get_current_user_with_token),
 ) -> Any:
     """
-    Create a timedelta preprocessing task in Vantage6.
-    Computes the number of days from a date column to today and stores it in output_column.
-    Returns task_id and job_id for polling.
+    Executes a timedelta preprocessing task in Vantage6.
+
+    Computes the number of days between a start date column and:
+    - another column (to_date_column), or
+    - a fixed date (to_date), or
+    - today (default)
+
+    Priority:
+    1. to_date_column
+    2. to_date
+    3. today
     """
 
     try:

@@ -74,6 +74,8 @@ class TimedeltaRequest(BaseModel):
     column: str
     output_column: str
     analysis_id: int
+    to_date_column: Optional[str] = None
+    to_date: Optional[str] = None
 
 
 class OneHotEncodingRequest(BaseModel):

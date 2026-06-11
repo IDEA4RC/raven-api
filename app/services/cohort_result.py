@@ -444,7 +444,7 @@ class CohortResultService(
                     cohort_id=obj_in.cohort_id,
                     workspace_id=cohort.workspace_id,
                     disease_type=disease_type,
-                    message=f"PARTIALLY_EXECUTED — {len(tokens_present)}/{len(expected_count)} COEs responded",
+                    message=f"PARTIALLY_EXECUTED — {len(tokens_present)}/{expected_count} COEs responded",
                 )
 
         db.add(cohort)
