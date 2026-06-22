@@ -201,6 +201,7 @@ class CohortResultService(
             features=features,
             patient_ids_by_org=patient_ids_by_org,
             workspace_id=workspace.id,
+            cohort_name=cohort.cohort_name,
         )
 
         if createDataFrameResponse.dataframe_id in (None, -1):
@@ -208,6 +209,7 @@ class CohortResultService(
 
         cohort.dataframe_vantage_id = createDataFrameResponse.dataframe_id
         cohort.task_id_vantage = createDataFrameResponse.task_id
+        cohort.vantage6_cohort_name = createDataFrameResponse.cohort_name
 
         db.add(cohort)
         db.commit()

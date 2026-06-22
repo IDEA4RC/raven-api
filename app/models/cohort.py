@@ -30,6 +30,9 @@ class Cohort(Base):
         Integer, nullable=True
     )  # New field for query execution ID
     dataframe_status = Column(Text, nullable=True)  # New field for dataframe status
+    vantage6_cohort_name = Column(
+        Text, nullable=True
+    )  # New field for vantage6_cohort_name
     # Relationships
     user = relationship("User")
     analysis = relationship("Analysis", back_populates="cohorts")

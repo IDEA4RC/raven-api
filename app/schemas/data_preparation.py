@@ -114,6 +114,7 @@ class MergeVariablesRequest(BaseModel):
 class V6CreateDataFrame(BaseModel):
     task_id: int
     dataframe_id: int
+    cohort_name: Optional[str]
 
 
 class CoxPHRequest(BaseModel):

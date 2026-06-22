@@ -287,44 +287,51 @@ class Vantage6Service(
                 )
                 response.raise_for_status()
                 nodes = response.json().get("data", [])
-                online_from_nodes = {
+                # online_from_nodes = {
+                #     node["organization"]["id"]
+                #     for node in nodes
+                #     if node.get("status") == "online"
+                # }
+
+                # orgs_with_nodes = {node["organization"]["id"] for node in nodes}
+
+                orgs_with_nodes = {
                     node["organization"]["id"]
                     for node in nodes
-                    if node.get("status") == "online"
+                    if node.get("organization")
+                    and node["organization"].get("id") is not None
                 }
 
-                orgs_with_nodes = {node["organization"]["id"] for node in nodes}
-
                 logger.info(
-                    "[V6_get_online_organization_ids] Online organization IDs: %s",
-                    online_from_nodes,
-                )
-
-                response = client.get(
-                    f"{self.base_url}/organization",
-                    params={"collaboration_id": collaboration_id},
-                    headers=headers,
-                )
-                response.raise_for_status()
-                payload = response.json()
-
-                organizations = {
-                    org["id"]: org["name"] for org in payload.get("data", [])
-                }
-
-                org_ids = set(organizations.keys())
-
-                orgs_without_nodes = org_ids - orgs_with_nodes
-                final_ids = online_from_nodes | orgs_without_nodes
-
-                logger.info(
-                    "[V6_get_online_organization_ids] orgs_with_nodes=%s | orgs_without_nodes=%s | final=%s",
+                    "[V6_get_online_organization_ids] Organization IDs with nodes: %s",
                     orgs_with_nodes,
-                    orgs_without_nodes,
-                    final_ids,
                 )
 
-                return final_ids
+                # response = client.get(
+                #     f"{self.base_url}/organization",
+                #     params={"collaboration_id": collaboration_id},
+                #     headers=headers,
+                # )
+                # response.raise_for_status()
+                # payload = response.json()
+
+                # organizations = {
+                #     org["id"]: org["name"] for org in payload.get("data", [])
+                # }
+
+                # org_ids = set(organizations.keys())
+
+                # orgs_without_nodes = org_ids - orgs_with_nodes
+                # final_ids = online_from_nodes | orgs_without_nodes
+
+                # logger.info(
+                #     "[V6_get_online_organization_ids] orgs_with_nodes=%s | orgs_without_nodes=%s | final=%s",
+                #     orgs_with_nodes,
+                #     orgs_without_nodes,
+                #     final_ids,
+                # )
+
+                return orgs_with_nodes
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6_get_online_organization_ids] Node lookup failed (%s): %s",
@@ -901,6 +908,7 @@ class Vantage6Service(
         features: str,
         patient_ids_by_org: dict,
         workspace_id: int,
+        cohort_name: str,
     ) -> V6CreateDataFrame:
         """
         Crea una nuevo cohort en Vantage 6
@@ -910,6 +918,10 @@ class Vantage6Service(
         METHOD = "create_cohort"
 
         logger.info("[V6] create_new_cohort START for workspace_id=%s", workspace_id)
+        logger.info("[COHORT NAME] Before: %s", cohort_name)
+        vantage6_cohort_name = self.sanitize_cohort_name(cohort_name)
+
+        logger.info("[COHORT NAME] After: %s", vantage6_cohort_name)
 
         if not self.base_url:
             logger.warning("External cohort registry URL not configured")
@@ -940,6 +952,7 @@ class Vantage6Service(
         logger.info("[V6] Orgs to include in cohort creation: %s", orgs_to_include)
         payload = {
             "label": LABEL,
+            "name": vantage6_cohort_name,
             "task": {
                 "method": METHOD,
                 "image": IMAGE,
@@ -1003,7 +1016,11 @@ class Vantage6Service(
 
             logger.info("[V6] Cohort creation task status: %s", result)
 
-            return V6CreateDataFrame(task_id=task_id, dataframe_id=dataframe_id)
+            return V6CreateDataFrame(
+                task_id=task_id,
+                dataframe_id=dataframe_id,
+                cohort_name=vantage6_cohort_name,
+            )
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "[V6] Vantage6 organization lookup failed (%s): %s",
@@ -1015,6 +1032,32 @@ class Vantage6Service(
             logger.error("[V6] Vantage6 unreachable: %s", str(exc))
 
         return V6CreateDataFrame(task_id=-1, dataframe_id=-1)
+
+    def sanitize_cohort_name(self, name: str) -> str:
+        """
+        Change a cohort name to something acepted by Vantage6:
+        - spaces -> _
+        - Only letter and numbers , '_' and '-'
+        - remove other characters
+        - no '_' consequtives
+        """
+        if not name:
+            name = "cohort"
+
+        # spaces -> _
+        name = re.sub(r"\s+", "_", name.strip())
+
+        # remove other characters
+        name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+
+        # Compactar múltiples _
+        name = re.sub(r"_+", "_", name)
+
+        name.strip("_")
+
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+        return f"{name}_{timestamp}"
 
     def data_preparation(
         self,
