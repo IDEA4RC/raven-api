@@ -221,7 +221,8 @@ def create_cohort(
             db=db, obj_in=cohort_in, user_id=user.id  # , access_token=TOKEN_V6
         )
         log_event(
-            "cohort", "execute",
+            "cohort",
+            "execute",
             user_id=str(user.id),
             cohort_id=cohort.id,
             workspace_id=cohort.workspace_id,

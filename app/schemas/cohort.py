@@ -16,6 +16,7 @@ class CohortBase(BaseModel):
     query_execution_id: Optional[int] = None
     dataframe_vantage_id: Optional[int] = None
     task_id_vantage: Optional[int] = None
+    vantage6_cohort_name: Optional[str] = None
 
 
 class CohortCreate(CohortBase):
